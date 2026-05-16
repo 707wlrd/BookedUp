@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       const enc = new TextEncoder();
       try {
         const stream = anthropic.messages.stream({
-          model: 'claude-3-haiku-20240307',
+          model: 'claude-2.1',
           max_tokens: 700,
           system: SYSTEM,
           messages: [{ role: 'user', content: prompt }],
