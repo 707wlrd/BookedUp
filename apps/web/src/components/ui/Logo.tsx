@@ -1,84 +1,62 @@
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-/* ── SVG icon mark ── */
-function BookedUpMark({ size = 28 }: { size?: number }) {
+/* ── SVG Mark : calendrier + éclair ── */
+function BookedUpMark({ size = 30 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 28 28"
+      viewBox="0 0 30 30"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
       <defs>
-        <linearGradient id="bu-grad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#a78bfa" />
-          <stop offset="100%" stopColor="#6d28d9" />
+        <linearGradient id="bu-bg" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#9333ea" />
+          <stop offset="100%" stopColor="#5b21b6" />
         </linearGradient>
-        <filter id="bu-glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
+        <linearGradient id="bu-bolt" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#fde68a" />
+          <stop offset="100%" stopColor="#fbbf24" />
+        </linearGradient>
       </defs>
 
-      {/* Background rounded square */}
-      <rect width="28" height="28" rx="7" fill="url(#bu-grad)" />
+      {/* Fond carré arrondi */}
+      <rect width="30" height="30" rx="8" fill="url(#bu-bg)" />
 
-      {/* Scissors SVG — custom, tight, centered */}
-      <g filter="url(#bu-glow)" transform="translate(5, 5)">
-        {/* Top blade */}
-        <path
-          d="M2.5 2.5 C2.5 2.5 10 7 10 9"
-          stroke="white"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        {/* Bottom blade */}
-        <path
-          d="M2.5 15.5 C2.5 15.5 10 11 10 9"
-          stroke="white"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        {/* Top handle circle */}
-        <circle cx="2.5" cy="2.5" r="2" stroke="white" strokeWidth="1.5" fill="none" />
-        {/* Bottom handle circle */}
-        <circle cx="2.5" cy="15.5" r="2" stroke="white" strokeWidth="1.5" fill="none" />
-        {/* Cross point dot */}
-        <circle cx="10" cy="9" r="1" fill="white" />
-        {/* Extension line (tail of scissors) */}
-        <path
-          d="M10 9 L16 6.5"
-          stroke="rgba(255,255,255,0.5)"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeDasharray="1.5 1.5"
-        />
-        <path
-          d="M10 9 L16 11.5"
-          stroke="rgba(255,255,255,0.5)"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeDasharray="1.5 1.5"
-        />
-      </g>
+      {/* Calendrier — contour */}
+      <rect x="5" y="8.5" width="20" height="16" rx="2.5" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.7)" strokeWidth="1.4" />
+
+      {/* Barre header du calendrier */}
+      <rect x="5" y="8.5" width="20" height="5.5" rx="2.5" fill="rgba(255,255,255,0.18)" />
+      {/* Correction coins bas de la barre header */}
+      <rect x="5" y="11.5" width="20" height="2.5" fill="rgba(255,255,255,0.18)" />
+
+      {/* Anneau gauche */}
+      <rect x="9.5" y="5.5" width="2.2" height="6" rx="1.1" fill="white" />
+      {/* Anneau droit */}
+      <rect x="18.3" y="5.5" width="2.2" height="6" rx="1.1" fill="white" />
+
+      {/* Éclair centré dans le corps du calendrier */}
+      {/* Viewbox corps : x 5-25, y 14-24.5 → centre x=15, y=19 */}
+      <path
+        d="M16.5 14.5 L11.5 20 L14.8 20 L13.5 25.5 L19 19.5 L15.5 19.5 Z"
+        fill="url(#bu-bolt)"
+      />
     </svg>
   );
 }
 
 /* ── Wordmark ── */
-function BookedUpWordmark({ className }: { className?: string }) {
+function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn('font-bold tracking-tight', className)}>
+    <span className={cn('font-bold leading-none tracking-tight', className)}>
       <span className="text-white">Booked</span>
       <span
         style={{
-          background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)',
+          background: 'linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
@@ -90,18 +68,18 @@ function BookedUpWordmark({ className }: { className?: string }) {
   );
 }
 
-/* ── Logo (icon + wordmark) ── */
-export function Logo({ className, size = 28 }: { className?: string; size?: number }) {
+/* ── Logo principal ── */
+export function Logo({ className, iconSize = 30 }: { className?: string; iconSize?: number }) {
   return (
-    <Link href="/" className={cn('flex items-center gap-2', className)}>
-      <BookedUpMark size={size} />
-      <BookedUpWordmark className="text-[17px] leading-none" />
+    <Link href="/" className={cn('flex items-center gap-2.5', className)}>
+      <BookedUpMark size={iconSize} />
+      <Wordmark className="text-[17px]" />
     </Link>
   );
 }
 
-/* ── Mark only (icon seul, pour favicon / splash) ── */
-export function LogoMark({ size = 28, className }: { size?: number; className?: string }) {
+/* ── Mark seul (favicon / splash) ── */
+export function LogoMark({ size = 30, className }: { size?: number; className?: string }) {
   return (
     <span className={cn('inline-flex', className)}>
       <BookedUpMark size={size} />
