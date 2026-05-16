@@ -121,6 +121,21 @@ export default function AppointmentsPage() {
 
   useEffect(() => { loadAppts(true); }, [barberId, tab, query]);
 
+  /* ── Realtime: refresh list when any appointment changes for this barber ── */
+  useEffect(() => {
+    if (!barberId) return;
+    const channel = supabase
+      .channel(`appts-page:${barberId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `barber_id=eq.${barberId}`,
+      }, () => { loadAppts(true); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [barberId, loadAppts]);
+
   /* ── Update status ── */
   async function updateStatus(id: string, status: Status) {
     setUpdating(id);

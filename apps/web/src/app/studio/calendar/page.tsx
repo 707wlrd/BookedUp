@@ -156,6 +156,21 @@ export default function CalendarPage() {
 
   useEffect(() => { loadAppts(); }, [loadAppts]);
 
+  /* Realtime: refresh calendar when any appointment changes for this barber */
+  useEffect(() => {
+    if (!barberId) return;
+    const channel = supabase
+      .channel(`calendar:${barberId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `barber_id=eq.${barberId}`,
+      }, () => { loadAppts(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [barberId, loadAppts]);
+
   /* Current time indicator */
   useEffect(() => {
     function update() {

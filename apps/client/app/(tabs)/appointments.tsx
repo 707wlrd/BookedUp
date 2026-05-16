@@ -59,6 +59,24 @@ export default function AppointmentsScreen() {
 
   useEffect(() => { load().finally(() => setLoading(false)); }, [load]);
 
+  // ── Realtime: rafraîchit la liste dès qu'un RDV change pour ce client ──
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      channel = supabase
+        .channel(`client-appts:${user.id}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `customer_id=eq.${user.id}`,
+        }, () => { load(); })
+        .subscribe();
+    });
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [load]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await load();

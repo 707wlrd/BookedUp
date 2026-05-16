@@ -235,6 +235,30 @@ export default function BookScreen() {
 
       const json = await res.json();
       if (!res.ok) {
+        if (res.status === 409) {
+          // Ce créneau vient d'être pris → on revient au choix de créneau
+          // et on recharge les disponibilités automatiquement
+          setStep('datetime');
+          setTime('');
+          // Forcer le rechargement des créneaux pour ce jour
+          if (date && selectedService) {
+            setSlotsLoading(true);
+            setBusySlots([]);
+            fetch(`${API}/api/availability?barber_id=${barberId}&date=${date}&duration=${selectedService.duration_minutes}`)
+              .then(r => r.json())
+              .then(d => setBusySlots(
+                (d.slots ?? []).filter((s: { time: string; available: boolean }) => !s.available).map((s: { time: string }) => s.time)
+              ))
+              .catch(() => {})
+              .finally(() => setSlotsLoading(false));
+          }
+          Alert.alert(
+            'Créneau indisponible',
+            'Ce créneau vient d\'être réservé par quelqu\'un d\'autre. Les disponibilités ont été actualisées, choisis un autre horaire.',
+            [{ text: 'OK' }],
+          );
+          return;
+        }
         Alert.alert('Erreur', json.error || `Erreur ${res.status}`);
         return;
       }
