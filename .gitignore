@@ -47,3 +47,5 @@ supabase/.temp
 *.orig.*
 ios/
 android/
+
+.vercel

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { supabase } from '@/lib/supabase';
 import { SplashOverlay } from '@/components/SplashOverlay';
+import { registerForPushNotifications, saveClientPushToken, clearClientPushToken } from '@/lib/notifications';
 import type { Session } from '@supabase/supabase-js';
 
 function useAuthGuard(session: Session | null | undefined) {
@@ -25,13 +27,36 @@ function useAuthGuard(session: Session | null | undefined) {
 export default function RootLayout() {
   const [session,    setSession]    = useState<Session | null | undefined>(undefined);
   const [showSplash, setShowSplash] = useState(true);
+  const notifListener = useRef<Notifications.EventSubscription | null>(null);
+  const router        = useRouter();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
+      if (s) {
+        // Enregistrement push à la connexion
+        registerForPushNotifications().then(token => {
+          if (token) saveClientPushToken(token);
+        });
+      } else {
+        // Nettoyage à la déconnexion
+        clearClientPushToken();
+      }
     });
-    return () => subscription.unsubscribe();
+
+    // Écouter les taps sur notification → naviguer vers le RDV
+    notifListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data as any;
+      if (data?.appointment_id) {
+        router.push(`/booking/success?id=${data.appointment_id}` as any);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      notifListener.current?.remove();
+    };
   }, []);
 
   useAuthGuard(session);

@@ -90,6 +90,45 @@ export async function pushCancellation(token: string | null | undefined, params:
 }
 
 /**
+ * Convenience: sends a "booking confirmed" push to a CLIENT.
+ * Called when the barber confirms a pending appointment.
+ */
+export async function pushClientConfirmed(token: string | null | undefined, params: {
+  shopName:    string;
+  serviceName: string;
+  date:        string;
+  time:        string;
+  appointmentId: string;
+}) {
+  if (!token) return;
+  await sendPushNotification({
+    token,
+    title: `RDV confirmé ✅`,
+    body:  `${params.shopName} · ${params.serviceName} · ${params.date} à ${params.time}`,
+    data:  { appointment_id: params.appointmentId, type: 'booking_confirmed' },
+  });
+}
+
+/**
+ * Convenience: sends a "booking cancelled" push to a CLIENT.
+ */
+export async function pushClientCancelled(token: string | null | undefined, params: {
+  shopName:    string;
+  serviceName: string;
+  date:        string;
+  time:        string;
+  appointmentId: string;
+}) {
+  if (!token) return;
+  await sendPushNotification({
+    token,
+    title: `RDV annulé ❌`,
+    body:  `${params.shopName} · ${params.serviceName} · ${params.date} à ${params.time}`,
+    data:  { appointment_id: params.appointmentId, type: 'booking_cancelled' },
+  });
+}
+
+/**
  * Convenience: sends a "deposit paid" push to a barber.
  */
 export async function pushDepositPaid(token: string | null | undefined, params: {

@@ -23,6 +23,7 @@ type Appt = {
   deposit_cents: number;
   payment_status: string;
   notes: string | null;
+  recurring_series_id: string | null;
   services: { name: string; duration_minutes: number } | null;
   stylists: { name: string } | null;
 };
@@ -34,6 +35,7 @@ export default function AppointmentDetail() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [cancellingAll, setCancellingAll] = useState(false);
 
   useEffect(() => {
     supabase
@@ -46,6 +48,42 @@ export default function AppointmentDetail() {
         setLoading(false);
       });
   }, [id]);
+
+  async function cancelSeries() {
+    if (!appt?.recurring_series_id) return;
+    Alert.alert(
+      'Annuler toute la série ?',
+      'Tous les prochains rendez-vous de cette série récurrente seront annulés. Cette action est irréversible.',
+      [
+        { text: 'Non, garder', style: 'cancel' },
+        {
+          text: 'Annuler la série',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingAll(true);
+            try {
+              await supabase
+                .from('appointments')
+                .update({ status: 'cancelled' })
+                .eq('recurring_series_id', appt.recurring_series_id!)
+                .gte('starts_at', new Date().toISOString())
+                .neq('id', appt.id);
+              // Annuler aussi le RDV courant
+              await supabase
+                .from('appointments')
+                .update({ status: 'cancelled' })
+                .eq('id', appt.id);
+              setAppt(prev => prev ? { ...prev, status: 'cancelled' } : prev);
+            } catch {
+              Alert.alert('Erreur', 'Impossible d\'annuler la série. Réessayez.');
+            } finally {
+              setCancellingAll(false);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   async function updateStatus(status: string) {
     if (!appt) return;
@@ -124,9 +162,10 @@ export default function AppointmentDetail() {
     );
   }
 
-  const service = appt.services as any;
-  const stylist = appt.stylists as any;
-  const startsAt = new Date(appt.starts_at);
+  const service   = appt.services as any;
+  const stylist   = appt.stylists as any;
+  const startsAt  = new Date(appt.starts_at);
+  const isRecurring = !!appt.recurring_series_id;
 
   const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; icon: string }> = {
     confirmed: { label: 'Confirmé',   bg: 'rgba(59,130,255,0.10)',  color: colors.electric, icon: 'checkmark-circle' },
@@ -139,9 +178,17 @@ export default function AppointmentDetail() {
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.content}>
       {/* Status badge */}
-      <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
-        <Ionicons name={sc.icon as any} size={16} color={sc.color} />
-        <Text style={[s.statusText, { color: sc.color }]}>{sc.label}</Text>
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
+          <Ionicons name={sc.icon as any} size={16} color={sc.color} />
+          <Text style={[s.statusText, { color: sc.color }]}>{sc.label}</Text>
+        </View>
+        {isRecurring && (
+          <View style={s.recurringBadge}>
+            <Ionicons name="repeat" size={13} color={colors.electric} />
+            <Text style={s.recurringText}>Récurrent</Text>
+          </View>
+        )}
       </View>
 
       {/* Client info */}
@@ -283,6 +330,28 @@ export default function AppointmentDetail() {
         </View>
       ) : null}
 
+      {/* Annuler toute la série récurrente */}
+      {isRecurring && (appt.status === 'pending' || appt.status === 'confirmed') && (
+        <View style={s.seriesSection}>
+          <Text style={s.seriesHint}>Ce RDV fait partie d'une série récurrente.</Text>
+          <Pressable
+            onPress={cancelSeries}
+            disabled={cancellingAll}
+            style={[s.btn, s.btnSeriesCancel, cancellingAll && { opacity: 0.5 }]}
+          >
+            {cancellingAll
+              ? <ActivityIndicator size="small" color={colors.warning} />
+              : (
+                <>
+                  <Ionicons name="repeat" size={16} color={colors.warning} />
+                  <Text style={s.btnSeriesCancelText}>Annuler toute la série</Text>
+                </>
+              )
+            }
+          </Pressable>
+        </View>
+      )}
+
       {appt.status === 'cancelled' && (
         <View style={s.cancelledBanner}>
           <Ionicons name="close-circle" size={20} color={colors.danger} />
@@ -366,6 +435,23 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
     backgroundColor: 'rgba(239,68,68,0.06)',
   },
+
+  recurringBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(124,58,237,0.12)',
+    borderWidth: 1, borderColor: 'rgba(124,58,237,0.25)',
+  },
+  recurringText: { color: colors.electric, fontWeight: '600', fontSize: 12 },
+
+  seriesSection: { marginTop: spacing.lg, gap: spacing.sm },
+  seriesHint: { color: colors.textFaint, fontSize: 12, textAlign: 'center' },
+  btnSeriesCancel: {
+    borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    backgroundColor: 'rgba(245,158,11,0.06)',
+  },
+  btnSeriesCancelText: { color: colors.warning, fontWeight: '600', fontSize: 14 },
 
   cancelledBanner: {
     marginTop: spacing.lg,
