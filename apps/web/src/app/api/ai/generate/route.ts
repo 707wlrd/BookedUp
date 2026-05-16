@@ -49,9 +49,20 @@ export async function POST(req: Request) {
 
   const groq = new Groq({ apiKey });
 
-  // ── Auth guard ─────────────────────────────────────────────────────────
+  // ── Auth guard (cookie session OR Bearer token for mobile) ────────────
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
+
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const { data } = await supabase.auth.getUser(token);
+    user = data.user;
+  } else {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  }
+
   if (!user) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401, headers: { 'content-type': 'application/json' },
