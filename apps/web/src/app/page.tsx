@@ -26,13 +26,14 @@ export default function HomePage() {
       <main>
         {/* ── Hero ──────────────────────────────────────────── */}
         <section className="relative flex flex-col items-center justify-center px-6 py-28 text-center overflow-hidden">
+          {/* Halo violet — identique au screenshot validé */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10"
-            style={{
-              background:
-                'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99,102,241,0.15) 0%, transparent 70%)',
-            }}
+            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 h-[700px] w-[700px] rounded-full bg-electric-600/20 blur-[120px]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 h-[400px] w-[400px] rounded-full bg-electric-500/25 blur-[80px]"
           />
 
           <motion.div
