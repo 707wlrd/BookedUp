@@ -1,126 +1,166 @@
 /**
- * Génère toutes les icônes PNG pour les apps BookedUp Pro et BookedUp Client.
- * Usage : node generate-icons.js
- * Dépendance : npm install -g sharp  (ou : npm install sharp)
+ * generate-icons.js
+ * Génère tous les assets PNG pour BookedUp (client) et BookedUp Pro (mobile/coiffeur).
+ * Utilise sharp + SVG inline — aucune dépendance native à compiler.
+ *
+ * Installation : npm install sharp   (ou : pnpm add -w sharp)
+ * Exécution    : node generate-icons.js
  */
+
 const sharp = require('sharp');
 const path  = require('path');
 const fs    = require('fs');
 
-const PURPLE = '#7C3AED';
-const BG     = '#050608';
-const WHITE  = '#FFFFFF';
+// ─── Tokens de marque ────────────────────────────────────────────────────────
+const VIOLET  = '#7C3AED';
+const DARK_BG = '#050608';
+const WHITE   = '#FFFFFF';
 
-// SVG éclair centré sur fond coloré
-function iconSvg(size, bgColor, boltColor) {
-  const pad  = size * 0.22;
-  const w    = size - pad * 2;
-  const h    = size - pad * 2;
-  // Éclair stylisé
-  const pts  = [
-    [pad + w * 0.58, pad],
-    [pad + w * 0.22, pad + h * 0.48],
-    [pad + w * 0.50, pad + h * 0.48],
-    [pad + w * 0.42, pad + h],
-    [pad + w * 0.78, pad + h * 0.52],
-    [pad + w * 0.50, pad + h * 0.52],
-  ].map(([x, y]) => `${x},${y}`).join(' ');
+// ─── Chemins de sortie ───────────────────────────────────────────────────────
+const MOBILE_ASSETS = path.join(__dirname, 'apps', 'mobile', 'assets');
+const CLIENT_ASSETS = path.join(__dirname, 'apps', 'client', 'assets');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-    ${bgColor ? `<rect width="${size}" height="${size}" fill="${bgColor}" rx="${size * 0.22}"/>` : ''}
-    <polygon points="${pts}" fill="${boltColor}" />
-  </svg>`;
+[MOBILE_ASSETS, CLIENT_ASSETS].forEach(d => fs.mkdirSync(d, { recursive: true }));
+
+// ─── Path SVG de l'éclair (viewBox 0 0 100 100) ─────────────────────────────
+// Forme asymétrique pointue — haut-droit vers bas-gauche
+const BOLT = 'M 57,4 L 25,54 L 46,54 L 43,96 L 75,46 L 54,46 Z';
+
+// ─── Générateurs SVG ─────────────────────────────────────────────────────────
+
+/**
+ * Icône carrée 1024×1024
+ * bg         : couleur de fond (null = transparent)
+ * boltColor  : couleur de l'éclair
+ */
+function svgIcon(size, bg, boltColor) {
+  const margin = size * 0.20;          // espace autour de l'éclair
+  const bW = size - margin * 2;
+  const bH = bW;
+  const bX = margin;
+  const bY = margin;
+
+  const background = bg
+    ? `<rect width="${size}" height="${size}" fill="${bg}"/>`
+    : '';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  ${background}
+  <g transform="translate(${bX},${bY}) scale(${bW / 100},${bH / 100})">
+    <path d="${BOLT}" fill="${boltColor}"/>
+  </g>
+</svg>`;
 }
 
-// SVG splash (portrait)
-function splashSvg(w, h, isPro) {
-  const boltSize = Math.min(w, h) * 0.18;
-  const boltPad  = (boltSize * 0.22);
-  const boltW    = boltSize - boltPad * 2;
-  const boltH    = boltSize - boltPad * 2;
-  const bx       = (w - boltSize) / 2;
-  const by       = h * 0.35;
+/**
+ * Adaptive icon 1024×1024 — éclair seul légèrement plus petit
+ * (Android ajoute son propre fond de couleur)
+ */
+function svgAdaptive(size, boltColor) {
+  const margin = size * 0.22;
+  const bW = size - margin * 2;
+  const bX = margin;
+  const bY = margin;
 
-  const pts = [
-    [bx + boltPad + boltW * 0.58, by + boltPad],
-    [bx + boltPad + boltW * 0.22, by + boltPad + boltH * 0.48],
-    [bx + boltPad + boltW * 0.50, by + boltPad + boltH * 0.48],
-    [bx + boltPad + boltW * 0.42, by + boltPad + boltH],
-    [bx + boltPad + boltW * 0.78, by + boltPad + boltH * 0.52],
-    [bx + boltPad + boltW * 0.50, by + boltPad + boltH * 0.52],
-  ].map(([x, y]) => `${x},${y}`).join(' ');
-
-  const fontSize    = w * 0.095;
-  const textY       = by + boltSize + fontSize * 1.2;
-  const subFontSize = w * 0.042;
-  const subY        = textY + fontSize * 0.9;
-  const badgeH      = subFontSize * 1.8;
-  const badgeW      = subFontSize * 5;
-  const badgeX      = (w - badgeW) / 2;
-  const badgeY      = subY - subFontSize * 1.1;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-    <rect width="${w}" height="${h}" fill="${BG}"/>
-    <polygon points="${pts}" fill="${WHITE}"/>
-    <text x="${w/2}" y="${textY}" font-family="system-ui,-apple-system,sans-serif"
-      font-size="${fontSize}" font-weight="800" fill="${WHITE}" text-anchor="middle">BookedUp</text>
-    ${isPro ? `
-    <rect x="${badgeX}" y="${badgeY}" width="${badgeW}" height="${badgeH}"
-      rx="${badgeH/2}" fill="${PURPLE}"/>
-    <text x="${w/2}" y="${subY}" font-family="system-ui,-apple-system,sans-serif"
-      font-size="${subFontSize}" font-weight="700" fill="${WHITE}" text-anchor="middle">PRO</text>
-    ` : `
-    <text x="${w/2}" y="${subY}" font-family="system-ui,-apple-system,sans-serif"
-      font-size="${subFontSize}" font-weight="400" fill="rgba(255,255,255,0.45)" text-anchor="middle">Réservez en quelques secondes</text>
-    `}
-  </svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <g transform="translate(${bX},${bY}) scale(${bW / 100},${bW / 100})">
+    <path d="${BOLT}" fill="${boltColor}"/>
+  </g>
+</svg>`;
 }
 
-// SVG notification icon (transparent bg)
-function notifSvg(size) {
-  const pad  = size * 0.12;
-  const w    = size - pad * 2;
-  const h    = size - pad * 2;
-  const pts  = [
-    [pad + w * 0.58, pad],
-    [pad + w * 0.22, pad + h * 0.48],
-    [pad + w * 0.50, pad + h * 0.48],
-    [pad + w * 0.42, pad + h],
-    [pad + w * 0.78, pad + h * 0.52],
-    [pad + w * 0.50, pad + h * 0.52],
-  ].map(([x, y]) => `${x},${y}`).join(' ');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-    <polygon points="${pts}" fill="${WHITE}"/>
-  </svg>`;
+/**
+ * Splash portrait 1284×2778
+ * appName     : nom affiché sous l'éclair
+ * showPro     : true → badge violet "Pro" sous le nom
+ */
+function svgSplash(W, H, appName, showPro) {
+  // Éclair : 36 % de la largeur, centré verticalement à 40 % du haut
+  const bW   = W * 0.36;
+  const bH   = bW;
+  const bX   = (W - bW) / 2;
+  const bY   = H * 0.40 - bH / 2;
+
+  // Texte principal
+  const fsMain = W * 0.092;
+  const mainY  = bY + bH + fsMain * 1.35;
+
+  // Badge Pro
+  const fsPro  = W * 0.040;
+  const badgeH = fsPro * 2.0;
+  const badgeW = fsPro * 4.8;
+  const badgeX = (W - badgeW) / 2;
+  const badgeY = mainY + fsPro * 0.6;
+  const proY   = badgeY + fsPro * 1.35;
+
+  const badge = showPro ? `
+  <rect x="${badgeX}" y="${badgeY}" width="${badgeW}" height="${badgeH}"
+        rx="${badgeH / 2}" fill="${VIOLET}"/>
+  <text x="${W / 2}" y="${proY}"
+        font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+        font-weight="700" font-size="${fsPro}" fill="${WHITE}"
+        text-anchor="middle" letter-spacing="4">PRO</text>` : '';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <rect width="${W}" height="${H}" fill="${DARK_BG}"/>
+  <g transform="translate(${bX},${bY}) scale(${bW / 100},${bH / 100})">
+    <path d="${BOLT}" fill="${WHITE}"/>
+  </g>
+  <text x="${W / 2}" y="${mainY}"
+        font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+        font-weight="800" font-size="${fsMain}" fill="${WHITE}"
+        text-anchor="middle" letter-spacing="6">${appName}</text>
+  ${badge}
+</svg>`;
 }
 
-async function gen(svgStr, outPath, w, h) {
-  const buf = Buffer.from(svgStr);
-  await sharp(buf).resize(w, h).png().toFile(outPath);
-  console.log(`✓ ${path.relative(process.cwd(), outPath)}`);
+/**
+ * Icône de notification 96×96 — éclair blanc, fond transparent
+ */
+function svgNotif(size) {
+  const margin = size * 0.10;
+  const bW = size - margin * 2;
+  const bX = margin;
+  const bY = margin;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <g transform="translate(${bX},${bY}) scale(${bW / 100},${bW / 100})">
+    <path d="${BOLT}" fill="${WHITE}"/>
+  </g>
+</svg>`;
+}
+
+// ─── Pipeline de rendu ───────────────────────────────────────────────────────
+async function render(svgString, outPath) {
+  const buf = Buffer.from(svgString, 'utf8');
+  await sharp(buf).png().toFile(outPath);
+  const kb = (fs.statSync(outPath).size / 1024).toFixed(1);
+  console.log(`  OK  ${path.relative(__dirname, outPath).padEnd(48)}  ${kb} KB`);
 }
 
 async function main() {
-  const mobile = path.join(__dirname, 'apps/mobile/assets');
-  const client = path.join(__dirname, 'apps/client/assets');
+  console.log('\n=== BookedUp — Générateur d\'icônes ===\n');
 
-  // Mobile Pro
-  await gen(iconSvg(1024, PURPLE, WHITE),      path.join(mobile, 'icon.png'),              1024, 1024);
-  await gen(iconSvg(1024, null,   PURPLE),      path.join(mobile, 'adaptive-icon.png'),     1024, 1024);
-  await gen(splashSvg(1284, 2778, true),        path.join(mobile, 'splash.png'),            1284, 2778);
-  await gen(notifSvg(96),                       path.join(mobile, 'notification-icon.png'),   96,   96);
+  // ── mobile — BookedUp Pro (coiffeur) ────────────────────────────────────
+  console.log('[mobile / BookedUp Pro]');
+  await render(svgIcon(1024, VIOLET, WHITE),      path.join(MOBILE_ASSETS, 'icon.png'));
+  await render(svgAdaptive(1024, VIOLET),          path.join(MOBILE_ASSETS, 'adaptive-icon.png'));
+  await render(svgSplash(1284, 2778, 'BookedUp', true),  path.join(MOBILE_ASSETS, 'splash.png'));
+  await render(svgNotif(96),                       path.join(MOBILE_ASSETS, 'notification-icon.png'));
 
-  // Client
-  await gen(iconSvg(1024, PURPLE, WHITE),      path.join(client, 'icon.png'),              1024, 1024);
-  await gen(iconSvg(1024, null,   PURPLE),      path.join(client, 'adaptive-icon.png'),     1024, 1024);
-  await gen(splashSvg(1284, 2778, false),       path.join(client, 'splash.png'),            1284, 2778);
-  await gen(notifSvg(96),                       path.join(client, 'notification-icon.png'),   96,   96);
+  // ── client — BookedUp (utilisateur) ────────────────────────────────────
+  console.log('\n[client / BookedUp]');
+  await render(svgIcon(1024, VIOLET, WHITE),      path.join(CLIENT_ASSETS, 'icon.png'));
+  await render(svgAdaptive(1024, VIOLET),          path.join(CLIENT_ASSETS, 'adaptive-icon.png'));
+  await render(svgSplash(1284, 2778, 'BookedUp', false), path.join(CLIENT_ASSETS, 'splash.png'));
 
-  console.log('\n🎨 Toutes les icônes générées !');
+  console.log('\n7 assets generes avec succes.\n');
 }
 
 main().catch(err => {
-  console.error('Erreur:', err.message);
-  console.log('\nInstalle sharp d\'abord : npm install sharp');
+  console.error('\nErreur:', err.message);
+  if (err.message.includes("Cannot find module 'sharp'")) {
+    console.error('\nInstalle sharp en premier :\n  npm install sharp\n  # ou : pnpm add -w sharp\n');
+  }
   process.exit(1);
 });
