@@ -83,18 +83,18 @@ export default function ProfileScreen() {
       {/* ── Salon ── */}
       <Text style={s.sectionLabel}>Mon salon</Text>
       <View style={s.section}>
-        <MenuItem icon="storefront-outline"  label="Informations du salon"   onPress={() => Alert.alert('Bientôt')} />
-        <MenuItem icon="time-outline"        label="Horaires d'ouverture"    onPress={() => Alert.alert('Bientôt')} />
-        <MenuItem icon="cut-outline"         label="Prestations & tarifs"    onPress={() => Alert.alert('Bientôt')} />
-        <MenuItem icon="people-outline"      label="Équipe / Stylistes"      onPress={() => Alert.alert('Bientôt')} showDivider={false} />
+        <MenuItem icon="storefront-outline"  label="Informations du salon"   onPress={() => router.push('/profile-salon' as any)} />
+        <MenuItem icon="time-outline"        label="Horaires d'ouverture"    onPress={() => Alert.alert('Bientôt disponible', 'La gestion des horaires arrive prochainement.')} />
+        <MenuItem icon="cut-outline"         label="Prestations & tarifs"    onPress={() => router.push('/profile-services' as any)} />
+        <MenuItem icon="people-outline"      label="Équipe / Stylistes"      onPress={() => router.push('/profile-stylists' as any)} showDivider={false} />
       </View>
 
       {/* ── Compte ── */}
       <Text style={s.sectionLabel}>Compte</Text>
       <View style={s.section}>
-        <MenuItem icon="person-outline"       label="Informations personnelles" onPress={() => Alert.alert('Bientôt')} />
-        <MenuItem icon="card-outline"         label="Abonnement & facturation"  onPress={() => Alert.alert('Bientôt')} value="Pro" />
-        <MenuItem icon="notifications-outline" label="Notifications"            onPress={() => Alert.alert('Bientôt')} showDivider={false} />
+        <MenuItem icon="person-outline"        label="Informations personnelles" onPress={() => router.push('/profile-personal' as any)} />
+        <MenuItem icon="card-outline"          label="Abonnement & facturation"  onPress={() => Alert.alert('Plan Pro', 'Gère ton abonnement depuis bookedup.app')} value="Pro" />
+        <MenuItem icon="notifications-outline" label="Notifications"             onPress={() => Alert.alert('Bientôt disponible', 'La gestion des notifications arrive prochainement.')} showDivider={false} />
       </View>
 
       {/* ── Aide ── */}
