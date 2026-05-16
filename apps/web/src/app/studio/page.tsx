@@ -254,8 +254,8 @@ export default async function StudioOverviewPage({
                 <div className="mt-1 text-xs text-white/40">
                   {(nextAppt.services as any)?.name ?? '—'}
                 </div>
-                <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/5">
-                  <div className="h-full w-1/3 animate-pulse-glow rounded-full bg-electric-500" />
+                <div className="mt-3 h-0.5 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div className="h-full w-1/3 rounded-full bg-electric-500/60" />
                 </div>
               </>
             ) : (
