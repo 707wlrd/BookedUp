@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "BookedUp",
+    "slug": "bookedup-client",
+    "version": "0.1.0",
+    "scheme": "bookedup-client",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050608"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.bookedup.client"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#050608"
+      },
+      "package": "app.bookedup.client"
+    },
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true }
+  }
+}
