@@ -1,140 +1,216 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, Dimensions, Pressable, ScrollView,
+  StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { formatPrice } from '@bookedup/shared';
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const API    = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const { width: W } = Dimensions.get('window');
 
-type Service    = { id: string; name: string; duration_minutes: number; price_cents: number };
-type Stylist    = { id: string; name: string };
-type SlotGroup  = { date: string; label: string; slots: string[] };
+// ─── Calendar helpers ────────────────────────────────────────────────────────
+const DAYS_FR   = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
+const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MONTHS_SHORT = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const DAYS_LONG    = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
 
-type Step = 'service' | 'date' | 'time' | 'stylist' | 'info' | 'confirm';
+function daysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate(); }
+function firstWeekday(y: number, m: number) { return (new Date(y, m, 1).getDay() + 6) % 7; } // 0=Mon
 
-const STEPS: Step[] = ['service', 'date', 'time', 'stylist', 'info', 'confirm'];
+function padDate(n: number) { return String(n).padStart(2, '0'); }
+function toISO(y: number, m: number, d: number) { return `${y}-${padDate(m + 1)}-${padDate(d)}`; }
 
-function buildDateSlots(): SlotGroup[] {
-  const groups: SlotGroup[] = [];
-  const today = new Date();
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    const dateStr = d.toISOString().slice(0, 10); // YYYY-MM-DD
-    const label = i === 0
-      ? "Aujourd'hui"
-      : i === 1
-      ? 'Demain'
-      : d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' });
-    groups.push({ date: dateStr, label, slots: [] });
-  }
-  return groups;
-}
+// ─── Types ───────────────────────────────────────────────────────────────────
+type Service = { id: string; name: string; duration_minutes: number; price_cents: number };
+type Stylist  = { id: string; name: string };
+type Step     = 'datetime' | 'confirm';
 
-function generateHourSlots(openH = 9, closeH = 19, stepMin = 30): string[] {
+// ─── Generate time slots 09:00–19:30 every 30 min ───────────────────────────
+function generateSlots(startH = 9, endH = 19, stepMin = 30): string[] {
   const slots: string[] = [];
-  for (let h = openH; h < closeH; h++) {
+  for (let h = startH; h < endH; h++) {
     for (let m = 0; m < 60; m += stepMin) {
-      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      slots.push(`${padDate(h)}:${padDate(m)}`);
     }
   }
+  slots.push(`${padDate(endH)}:00`);
   return slots;
 }
 
+// ─── Calendar component ──────────────────────────────────────────────────────
+function CalendarPicker({ selected, onSelect }: { selected: string; onSelect: (d: string) => void }) {
+  const today    = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const [year, setYear]   = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+
+  function prevMonth() {
+    if (month === 0) { setYear(y => y - 1); setMonth(11); }
+    else setMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (month === 11) { setYear(y => y + 1); setMonth(0); }
+    else setMonth(m => m + 1);
+  }
+
+  const totalDays = daysInMonth(year, month);
+  const offset    = firstWeekday(year, month);
+  const cells: (number | null)[] = [
+    ...Array(offset).fill(null),
+    ...Array.from({ length: totalDays }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const cellW = Math.floor((W - spacing.md * 2 - spacing.md * 2) / 7);
+
+  return (
+    <View style={cal.wrap}>
+      {/* Month nav */}
+      <View style={cal.header}>
+        <Pressable onPress={prevMonth} hitSlop={12} style={cal.navBtn}>
+          <Ionicons name="chevron-back" size={20} color={colors.textDim} />
+        </Pressable>
+        <Text style={cal.monthLabel}>{MONTHS_FR[month]} {year}</Text>
+        <Pressable onPress={nextMonth} hitSlop={12} style={cal.navBtn}>
+          <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
+        </Pressable>
+      </View>
+
+      {/* Day names */}
+      <View style={cal.dayNames}>
+        {DAYS_FR.map(d => (
+          <Text key={d} style={[cal.dayName, { width: cellW }]}>{d}</Text>
+        ))}
+      </View>
+
+      {/* Grid */}
+      <View style={cal.grid}>
+        {cells.map((day, i) => {
+          if (!day) return <View key={`e${i}`} style={[cal.cell, { width: cellW }]} />;
+          const dateStr = toISO(year, month, day);
+          const isPast  = dateStr < todayStr;
+          const isSel   = dateStr === selected;
+          const isToday = dateStr === todayStr;
+          const isFree  = !isPast;
+
+          return (
+            <Pressable
+              key={day}
+              style={[cal.cell, { width: cellW }]}
+              onPress={() => isFree && onSelect(dateStr)}
+              disabled={isPast}
+            >
+              <View style={[
+                cal.dayCircle,
+                isSel && cal.dayCircleSel,
+                isToday && !isSel && cal.dayCircleToday,
+              ]}>
+                <Text style={[
+                  cal.dayTxt,
+                  isPast  && cal.dayTxtPast,
+                  isFree && !isSel && cal.dayTxtFree,
+                  isSel  && cal.dayTxtSel,
+                ]}>
+                  {day}
+                </Text>
+              </View>
+              {isToday && !isSel && <View style={cal.todayDot} />}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ─── Main screen ─────────────────────────────────────────────────────────────
 export default function BookScreen() {
-  const { barberId, serviceId: preselectedServiceId } = useLocalSearchParams<{ barberId: string; serviceId?: string }>();
-  const router = useRouter();
+  const { barberId, serviceId: preselected } = useLocalSearchParams<{ barberId: string; serviceId?: string }>();
+  const router   = useRouter();
+  const insets   = useSafeAreaInsets();
 
   // Data
+  const [shopName, setShopName]   = useState('');
   const [services, setServices]   = useState<Service[]>([]);
   const [stylists, setStylists]   = useState<Stylist[]>([]);
-  const [availSlots, setAvailSlots] = useState<string[]>([]);
-  const [busySlots, setBusySlots]   = useState<string[]>([]);
 
   // Selections
-  const [step, setStep]           = useState<Step>('service');
-  const [serviceId, setServiceId] = useState(preselectedServiceId ?? '');
+  const [step, setStep]           = useState<Step>('datetime');
+  const [serviceId, setServiceId] = useState(preselected ?? '');
+  const [stylistId, setStylistId] = useState<string | null>(null);
   const [date, setDate]           = useState('');
   const [time, setTime]           = useState('');
-  const [stylistId, setStylistId] = useState<string | null>(null); // null = no pref
-  const [name, setName]           = useState('');
-  const [email, setEmail]         = useState('');
-  const [phone, setPhone]         = useState('');
+
+  // Confirmation extras
+  const [promoCode, setPromoCode] = useState('');
+  const [newsletter, setNewsletter] = useState(false);
   const [notes, setNotes]         = useState('');
+  const [showNotes, setShowNotes] = useState(false);
+
+  // Customer info (from auth)
+  const [custName, setCustName]   = useState('');
+  const [custEmail, setCustEmail] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+
+  // Availability
+  const [busySlots, setBusySlots] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const allSlots = generateSlots();
 
   // UI
-  const [loading, setLoading]     = useState(true);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [booking, setBooking]     = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const [booking, setBooking]   = useState(false);
 
   const selectedService = services.find(s => s.id === serviceId);
   const selectedStylist = stylists.find(s => s.id === stylistId);
 
-  /* ── Load services & user info ── */
+  /* Init */
   const init = useCallback(async () => {
-    const [{ data: svcs }, { data: stys }, { data: { user } }] = await Promise.all([
+    const [{ data: b }, { data: svcs }, { data: stys }, { data: { user } }] = await Promise.all([
+      supabase.from('barbers').select('shop_name').eq('id', barberId).single(),
       supabase.from('services').select('id, name, duration_minutes, price_cents').eq('barber_id', barberId).eq('is_active', true).order('sort_order'),
       supabase.from('stylists').select('id, name').eq('barber_id', barberId).eq('is_active', true).order('sort_order'),
       supabase.auth.getUser(),
     ]);
+    setShopName((b as any)?.shop_name ?? '');
     setServices((svcs ?? []) as Service[]);
     setStylists((stys ?? []) as Stylist[]);
     if (user) {
-      setName(user.user_metadata?.full_name ?? '');
-      setEmail(user.email ?? '');
-      setPhone(user.user_metadata?.phone ?? '');
+      setCustName(user.user_metadata?.full_name ?? '');
+      setCustEmail(user.email ?? '');
+      setCustPhone(user.user_metadata?.phone ?? '');
     }
-    // If service was pre-selected, skip to date
-    if (preselectedServiceId && svcs?.some(s => s.id === preselectedServiceId)) {
-      setStep('date');
-    }
-  }, [barberId, preselectedServiceId]);
+    if (!preselected && svcs?.[0]) setServiceId(svcs[0].id);
+  }, [barberId, preselected]);
 
   useEffect(() => { init().finally(() => setLoading(false)); }, [init]);
 
-  /* ── Load availability when date changes ── */
+  /* Load availability when date changes */
   useEffect(() => {
     if (!date || !selectedService) return;
     setSlotsLoading(true);
-    const url = `${API}/api/availability?barber_id=${barberId}&date=${date}&duration=${selectedService.duration_minutes}`;
-    fetch(url)
+    setBusySlots([]);
+    fetch(`${API}/api/availability?barber_id=${barberId}&date=${date}&duration=${selectedService.duration_minutes}`)
       .then(r => r.json())
-      .then(d => {
-        setBusySlots(d.booked ?? []);
-        setAvailSlots(generateHourSlots());
-      })
-      .catch(() => setAvailSlots(generateHourSlots()))
+      .then(d => setBusySlots(d.booked ?? []))
+      .catch(() => {})
       .finally(() => setSlotsLoading(false));
   }, [date, selectedService, barberId]);
 
-  /* ── Book ── */
+  /* Book */
   async function confirmBooking() {
-    if (!selectedService || !date || !time || !name || !email) return;
+    if (!selectedService || !date || !time) return;
     setBooking(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-
       const [h, m] = time.split(':').map(Number);
-      const totalEnd = h * 60 + m + selectedService.duration_minutes;
-      const endH = String(Math.floor(totalEnd / 60)).padStart(2, '0');
-      const endM = String(totalEnd % 60).padStart(2, '0');
-
-      const body = {
-        barber_id:      barberId,
-        service_id:     selectedService.id,
-        stylist_id:     stylistId ?? null,
-        starts_at:      `${date}T${time}:00`,
-        ends_at:        `${date}T${endH}:${endM}:00`,
-        customer_name:  name.trim(),
-        customer_email: email.trim(),
-        customer_phone: phone.trim() || undefined,
-        notes:          notes.trim() || undefined,
-      };
+      const endMin = h * 60 + m + selectedService.duration_minutes;
+      const endsAt = `${date}T${padDate(Math.floor(endMin / 60))}:${padDate(endMin % 60)}:00`;
 
       const res = await fetch(`${API}/api/appointments`, {
         method: 'POST',
@@ -142,7 +218,17 @@ export default function BookScreen() {
           'content-type': 'application/json',
           ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          barber_id:      barberId,
+          service_id:     selectedService.id,
+          stylist_id:     stylistId ?? null,
+          starts_at:      `${date}T${time}:00`,
+          ends_at:        endsAt,
+          customer_name:  custName.trim() || 'Client',
+          customer_email: custEmail.trim(),
+          customer_phone: custPhone.trim() || undefined,
+          notes:          notes.trim() || undefined,
+        }),
       });
 
       const json = await res.json();
@@ -150,7 +236,6 @@ export default function BookScreen() {
         Alert.alert('Erreur', json.error || `Erreur ${res.status}`);
         return;
       }
-
       router.replace(`/booking/success?id=${json.appointment_id}` as any);
     } catch (e: any) {
       Alert.alert('Erreur réseau', e.message);
@@ -159,305 +244,378 @@ export default function BookScreen() {
     }
   }
 
-  /* ── Navigation ── */
-  function nextStep() {
-    const idx = STEPS.indexOf(step);
-    // Skip stylist step if no stylists
-    if (STEPS[idx + 1] === 'stylist' && stylists.length === 0) {
-      setStep('info');
-    } else {
-      setStep(STEPS[idx + 1] ?? step);
-    }
-  }
-  function prevStep() {
-    const idx = STEPS.indexOf(step);
-    if (idx === 0) { router.back(); return; }
-    if (step === 'info' && stylists.length === 0) {
-      setStep('time');
-    } else {
-      setStep(STEPS[idx - 1] ?? step);
-    }
+  /* Formatted date label for confirmation */
+  function formatDateLabel() {
+    if (!date || !time || !selectedService) return '';
+    const d = new Date(`${date}T${time}:00`);
+    const endMin = d.getHours() * 60 + d.getMinutes() + selectedService.duration_minutes;
+    const endH = Math.floor(endMin / 60);
+    const endM = endMin % 60;
+    const wd = DAYS_LONG[d.getDay() === 0 ? 6 : d.getDay() - 1];
+    return `${wd} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}, ${time} - ${padDate(endH)}:${padDate(endM)}`;
   }
 
   if (loading) {
     return (
       <View style={s.centered}>
+        <Stack.Screen options={{ title: shopName || 'Réserver', headerBackTitle: 'Retour' }} />
         <ActivityIndicator color={colors.electric} size="large" />
       </View>
     );
   }
 
-  const dateGroups = buildDateSlots();
-
-  return (
-    <>
-      <Stack.Screen options={{ title: 'Réserver' }} />
+  // ─── STEP: datetime ────────────────────────────────────────────────────────
+  if (step === 'datetime') {
+    return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        {/* Progress bar */}
-        <View style={s.progress}>
-          {STEPS.filter(st => !(st === 'stylist' && stylists.length === 0)).map((st, i, arr) => (
-            <View
-              key={st}
-              style={[
-                s.progressDot,
-                STEPS.indexOf(step) >= STEPS.indexOf(st) && s.progressDotActive,
-              ]}
-            />
-          ))}
-        </View>
+        <Stack.Screen options={{ title: shopName, headerBackTitle: 'Retour' }} />
+        <ScrollView contentContainerStyle={s.scrollPad} showsVerticalScrollIndicator={false}>
 
-        <ScrollView style={s.scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+          {/* Votre rendez-vous */}
+          <Text style={s.pageTitle}>Votre rendez-vous</Text>
 
-          {/* ── STEP: service ── */}
-          {step === 'service' && (
-            <>
-              <Text style={s.stepTitle}>Quelle prestation ?</Text>
-              {services.map(svc => (
-                <Pressable
-                  key={svc.id}
-                  onPress={() => { setServiceId(svc.id); }}
-                  style={[s.optionCard, serviceId === svc.id && s.optionCardActive]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.optionName}>{svc.name}</Text>
-                    <Text style={s.optionSub}>{svc.duration_minutes} min</Text>
-                  </View>
-                  <Text style={s.optionPrice}>{formatPrice(svc.price_cents)}</Text>
-                  {serviceId === svc.id && (
-                    <Ionicons name="checkmark-circle" size={20} color={colors.electric} />
-                  )}
-                </Pressable>
-              ))}
-            </>
-          )}
+          {/* Service card */}
+          {selectedService && (
+            <View style={s.serviceCard}>
+              <View style={s.serviceCardTop}>
+                <Text style={s.serviceCardName}>{selectedService.name}</Text>
+                <Text style={s.serviceCardPrice}>{formatPrice(selectedService.price_cents)}</Text>
+              </View>
 
-          {/* ── STEP: date ── */}
-          {step === 'date' && (
-            <>
-              <Text style={s.stepTitle}>Quel jour ?</Text>
-              {dateGroups.map(g => (
-                <Pressable
-                  key={g.date}
-                  onPress={() => { setDate(g.date); setTime(''); }}
-                  style={[s.optionCard, date === g.date && s.optionCardActive]}
-                >
-                  <Text style={[s.optionName, date === g.date && { color: colors.electric }]}>
-                    {g.label}
-                  </Text>
-                  {date === g.date && <Ionicons name="checkmark-circle" size={20} color={colors.electric} />}
-                </Pressable>
-              ))}
-            </>
-          )}
-
-          {/* ── STEP: time ── */}
-          {step === 'time' && (
-            <>
-              <Text style={s.stepTitle}>À quelle heure ?</Text>
-              {slotsLoading ? (
-                <ActivityIndicator color={colors.electric} style={{ marginTop: 40 }} />
-              ) : (
-                <View style={s.slotsGrid}>
-                  {availSlots.map(slot => {
-                    const busy = busySlots.includes(slot);
-                    return (
+              {/* Stylist selector */}
+              <View style={s.stylistRow}>
+                <View style={s.stylistIcon}>
+                  <Ionicons name="people-outline" size={18} color={colors.textFaint} />
+                </View>
+                {stylists.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, paddingRight: 8 }}>
                       <Pressable
-                        key={slot}
-                        onPress={() => !busy && setTime(slot)}
-                        disabled={busy}
-                        style={[
-                          s.slotBtn,
-                          time === slot && s.slotBtnActive,
-                          busy && s.slotBtnBusy,
-                        ]}
+                        onPress={() => setStylistId(null)}
+                        style={[s.stylistPill, stylistId === null && s.stylistPillActive]}
                       >
-                        <Text style={[
-                          s.slotText,
-                          time === slot && s.slotTextActive,
-                          busy && s.slotTextBusy,
-                        ]}>
-                          {slot}
+                        <Text style={[s.stylistPillText, stylistId === null && s.stylistPillTextActive]}>
+                          Peu importe
                         </Text>
                       </Pressable>
-                    );
-                  })}
-                </View>
-              )}
-            </>
-          )}
+                      {stylists.map(st => (
+                        <Pressable
+                          key={st.id}
+                          onPress={() => setStylistId(st.id)}
+                          style={[s.stylistPill, stylistId === st.id && s.stylistPillActive]}
+                        >
+                          <Text style={[s.stylistPillText, stylistId === st.id && s.stylistPillTextActive]}>
+                            {st.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
+                ) : (
+                  <Text style={s.stylistNone}>Premier disponible</Text>
+                )}
+              </View>
 
-          {/* ── STEP: stylist ── */}
-          {step === 'stylist' && stylists.length > 0 && (
-            <>
-              <Text style={s.stepTitle}>Un coiffeur en particulier ?</Text>
-              <Pressable
-                onPress={() => setStylistId(null)}
-                style={[s.optionCard, stylistId === null && s.optionCardActive]}
-              >
-                <Text style={s.optionName}>Peu importe</Text>
-                <Text style={s.optionSub}>Premier disponible</Text>
-                {stylistId === null && <Ionicons name="checkmark-circle" size={20} color={colors.electric} />}
-              </Pressable>
-              {stylists.map(st => (
-                <Pressable
-                  key={st.id}
-                  onPress={() => setStylistId(st.id)}
-                  style={[s.optionCard, stylistId === st.id && s.optionCardActive]}
-                >
-                  <View style={s.stylistAvatar}>
-                    <Text style={s.stylistAvatarText}>{st.name.charAt(0)}</Text>
+              <View style={s.serviceCardMeta}>
+                <Ionicons name="time-outline" size={13} color={colors.textFaint} />
+                <Text style={s.serviceCardDur}>{selectedService.duration_minutes} minutes</Text>
+              </View>
+
+              {/* Change service if multiple */}
+              {services.length > 1 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
+                  <View style={{ flexDirection: 'row', gap: 8, paddingRight: 8 }}>
+                    {services.map(svc => (
+                      <Pressable
+                        key={svc.id}
+                        onPress={() => { setServiceId(svc.id); setTime(''); }}
+                        style={[s.svcPill, serviceId === svc.id && s.svcPillActive]}
+                      >
+                        <Text style={[s.svcPillText, serviceId === svc.id && s.svcPillTextActive]}>
+                          {svc.name}
+                        </Text>
+                      </Pressable>
+                    ))}
                   </View>
-                  <Text style={[s.optionName, { flex: 1 }]}>{st.name}</Text>
-                  {stylistId === st.id && <Ionicons name="checkmark-circle" size={20} color={colors.electric} />}
-                </Pressable>
-              ))}
-            </>
+                </ScrollView>
+              )}
+            </View>
           )}
 
-          {/* ── STEP: info ── */}
-          {step === 'info' && (
-            <>
-              <Text style={s.stepTitle}>Tes coordonnées</Text>
-              <View style={s.field}>
-                <Text style={s.label}>Prénom *</Text>
-                <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Karim" placeholderTextColor={colors.textFaint} autoCapitalize="words" />
+          {/* Calendar */}
+          <Text style={s.sectionLabel}>Sélectionnez une date et une heure</Text>
+          <View style={s.calendarWrap}>
+            <CalendarPicker selected={date} onSelect={d => { setDate(d); setTime(''); }} />
+          </View>
+
+          {/* Time slots */}
+          {date && (
+            slotsLoading ? (
+              <View style={s.slotsLoader}>
+                <ActivityIndicator color={colors.electric} />
               </View>
-              <View style={s.field}>
-                <Text style={s.label}>Email *</Text>
-                <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="toi@email.com" placeholderTextColor={colors.textFaint} keyboardType="email-address" autoCapitalize="none" />
+            ) : (
+              <View style={s.slotsGrid}>
+                {allSlots.map(slot => {
+                  const busy = busySlots.includes(slot);
+                  const sel  = slot === time;
+                  return (
+                    <Pressable
+                      key={slot}
+                      onPress={() => !busy && setTime(slot)}
+                      disabled={busy}
+                      style={[s.slotPill, sel && s.slotPillSel, busy && s.slotPillBusy]}
+                    >
+                      <Text style={[s.slotTxt, sel && s.slotTxtSel, busy && s.slotTxtBusy]}>{slot}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <View style={s.field}>
-                <Text style={s.label}>Téléphone</Text>
-                <TextInput style={s.input} value={phone} onChangeText={setPhone} placeholder="+33 6 …" placeholderTextColor={colors.textFaint} keyboardType="phone-pad" />
-              </View>
-              <View style={s.field}>
-                <Text style={s.label}>Notes (optionnel)</Text>
-                <TextInput
-                  style={[s.input, { height: 80, textAlignVertical: 'top' }]}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder="Ex: première visite, allergie…"
-                  placeholderTextColor={colors.textFaint}
-                  multiline
-                />
-              </View>
-            </>
+            )
           )}
 
-          {/* ── STEP: confirm ── */}
-          {step === 'confirm' && selectedService && (
-            <>
-              <Text style={s.stepTitle}>Récapitulatif</Text>
-              <View style={s.summaryCard}>
-                <Row icon="cut-outline"      label="Prestation" value={selectedService.name} />
-                <Row icon="calendar-outline" label="Date"       value={new Date(date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} />
-                <Row icon="time-outline"     label="Heure"      value={time} />
-                {selectedStylist && <Row icon="person-outline" label="Coiffeur" value={selectedStylist.name} />}
-                <Row icon="person-outline"   label="Nom"        value={name} />
-                <Row icon="mail-outline"     label="Email"      value={email} />
-                {phone ? <Row icon="call-outline" label="Tél" value={phone} /> : null}
-                <View style={s.totalRow}>
-                  <Text style={s.totalLabel}>Total</Text>
-                  <Text style={s.totalValue}>{formatPrice(selectedService.price_cents)}</Text>
-                </View>
-              </View>
-            </>
+          {!date && (
+            <Text style={s.selectDateHint}>← Sélectionnez un jour dans le calendrier</Text>
           )}
+
+          <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Footer nav */}
-        <View style={s.footer}>
-          <Pressable onPress={prevStep} style={s.backBtn}>
-            <Ionicons name="chevron-back" size={20} color={colors.textDim} />
-            <Text style={s.backBtnText}>Retour</Text>
+        {/* Sticky next */}
+        <View style={[s.stickyBar, { paddingBottom: insets.bottom + 8 }]}>
+          <Pressable
+            onPress={() => setStep('confirm')}
+            disabled={!date || !time}
+            style={[s.stickyBtn, (!date || !time) && s.stickyBtnDisabled]}
+          >
+            <Text style={s.stickyBtnText}>Suivant</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
           </Pressable>
-
-          {step !== 'confirm' ? (
-            <Pressable
-              onPress={nextStep}
-              disabled={
-                (step === 'service' && !serviceId) ||
-                (step === 'date'    && !date) ||
-                (step === 'time'    && !time) ||
-                (step === 'info'    && (!name || !email))
-              }
-              style={[s.nextBtn, ((step === 'service' && !serviceId) || (step === 'date' && !date) || (step === 'time' && !time) || (step === 'info' && (!name || !email))) && s.nextBtnDisabled]}
-            >
-              <Text style={s.nextBtnText}>Suivant</Text>
-              <Ionicons name="chevron-forward" size={18} color="#fff" />
-            </Pressable>
-          ) : (
-            <Pressable onPress={confirmBooking} disabled={booking} style={[s.nextBtn, booking && s.nextBtnDisabled]}>
-              {booking
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.nextBtnText}>Confirmer</Text>
-              }
-            </Pressable>
-          )}
         </View>
       </View>
-    </>
-  );
-}
+    );
+  }
 
-function Row({ icon, label, value }: { icon: any; label: string; value: string }) {
+  // ─── STEP: confirm ─────────────────────────────────────────────────────────
   return (
-    <View style={s.row}>
-      <Ionicons name={icon} size={15} color={colors.textFaint} />
-      <Text style={s.rowLabel}>{label}</Text>
-      <Text style={s.rowValue}>{value}</Text>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack.Screen options={{ title: shopName, headerBackTitle: 'Retour' }} />
+      <ScrollView contentContainerStyle={s.scrollPad} showsVerticalScrollIndicator={false}>
+
+        {/* Recap header */}
+        <Text style={s.pageTitle}>Service(s) sélectionné(s)</Text>
+        <View style={s.confirmDateRow}>
+          <Ionicons name="calendar-outline" size={15} color={colors.textFaint} />
+          <Text style={s.confirmDateTxt}>{formatDateLabel()}</Text>
+        </View>
+
+        {/* Receipt card */}
+        <View style={s.receiptCard}>
+          {/* Promo code */}
+          <View style={s.promoRow}>
+            <TextInput
+              style={s.promoInput}
+              value={promoCode}
+              onChangeText={setPromoCode}
+              placeholder="Code promo"
+              placeholderTextColor={colors.textFaint}
+              autoCapitalize="characters"
+            />
+            <Pressable
+              onPress={() => promoCode && Alert.alert('Code promo', 'Fonctionnalité bientôt disponible.')}
+              style={s.promoApply}
+            >
+              <Text style={s.promoApplyText}>Appliquer</Text>
+            </Pressable>
+          </View>
+
+          <View style={s.receiptDivider} />
+
+          {/* Service line */}
+          {selectedService && (
+            <View style={s.receiptLine}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.receiptLineName}>{selectedService.name}</Text>
+                <Text style={s.receiptLineSub}>
+                  {selectedStylist ? `${selectedStylist.name} · ` : ''}{selectedService.duration_minutes} minutes
+                </Text>
+              </View>
+              <Text style={s.receiptLinePrice}>{formatPrice(selectedService.price_cents)}</Text>
+            </View>
+          )}
+
+          <View style={s.receiptDivider} />
+
+          {/* Total */}
+          <View style={s.receiptTotal}>
+            <Text style={s.receiptTotalLabel}>Total :</Text>
+            <Text style={s.receiptTotalValue}>{selectedService ? formatPrice(selectedService.price_cents) : '—'}</Text>
+          </View>
+        </View>
+
+        {/* Note */}
+        {!showNotes ? (
+          <Pressable onPress={() => setShowNotes(true)} style={s.addNoteRow}>
+            <Text style={s.addNoteTxt}>Ajouter une note</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.electric} />
+          </Pressable>
+        ) : (
+          <TextInput
+            style={s.notesInput}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Ex: première visite, allergie…"
+            placeholderTextColor={colors.textFaint}
+            multiline
+            numberOfLines={3}
+          />
+        )}
+
+        {/* Payment method */}
+        <Text style={s.sectionLabel}>Méthode de paiement</Text>
+        <View style={s.paymentCard}>
+          <View style={s.paymentOption}>
+            <View style={s.radioActive}>
+              <View style={s.radioDot} />
+            </View>
+            <Text style={s.paymentOptionText}>Paiement dans le salon</Text>
+          </View>
+        </View>
+
+        {/* Newsletter */}
+        <Text style={s.sectionLabel}>Newsletter</Text>
+        <View style={s.newsletterCard}>
+          <Text style={s.newsletterText}>Je souhaite recevoir les newsletters de {shopName}</Text>
+          <Switch
+            value={newsletter}
+            onValueChange={setNewsletter}
+            trackColor={{ false: colors.border, true: colors.electric }}
+            thumbColor="#fff"
+          />
+        </View>
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+
+      {/* Sticky confirm */}
+      <View style={[s.stickyBarConfirm, { paddingBottom: insets.bottom + 8 }]}>
+        <Text style={s.stickyPrice}>{selectedService ? formatPrice(selectedService.price_cents) : ''}</Text>
+        <Pressable
+          onPress={confirmBooking}
+          disabled={booking}
+          style={[s.confirmBtn, booking && s.confirmBtnDisabled]}
+        >
+          {booking
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={s.confirmBtnText}>Confirmer la réservation</Text>
+          }
+        </Pressable>
+      </View>
     </View>
   );
 }
 
+// ─── Calendar styles ──────────────────────────────────────────────────────────
+const cal = StyleSheet.create({
+  wrap:       { paddingVertical: spacing.sm },
+  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  navBtn:     { padding: 6 },
+  monthLabel: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  dayNames:   { flexDirection: 'row', marginBottom: 8 },
+  dayName:    { textAlign: 'center', color: colors.textFaint, fontSize: 12, fontWeight: '600' },
+  grid:       { flexDirection: 'row', flexWrap: 'wrap' },
+  cell:       { alignItems: 'center', marginBottom: 6 },
+  dayCircle:  { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  dayCircleSel:   { backgroundColor: colors.electric },
+  dayCircleToday: { borderWidth: 2, borderColor: colors.electric },
+  dayTxt:     { fontSize: 14, color: colors.textFaint },
+  dayTxtPast: { opacity: 0.3 },
+  dayTxtFree: { color: colors.text, fontWeight: '500' },
+  dayTxtSel:  { color: '#fff', fontWeight: '700' },
+  todayDot:   { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.electric, marginTop: 1 },
+});
+
+// ─── Screen styles ────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  scroll:   { flex: 1, backgroundColor: colors.bg },
-  content:  { padding: spacing.md, paddingBottom: 20, gap: spacing.sm },
+  centered:   { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  scrollPad:  { padding: spacing.md },
+  pageTitle:  { color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: spacing.sm },
+  sectionLabel: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: spacing.lg, marginBottom: spacing.sm },
 
-  progress:        { flexDirection: 'row', gap: 6, padding: spacing.md, paddingBottom: 4 },
-  progressDot:     { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.border },
-  progressDotActive: { backgroundColor: colors.electric },
+  // Service card
+  serviceCard:    { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  serviceCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm },
+  serviceCardName: { color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 },
+  serviceCardPrice: { color: colors.text, fontWeight: '700', fontSize: 17 },
+  stylistRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  stylistIcon:    { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.electricDim, alignItems: 'center', justifyContent: 'center' },
+  stylistNone:    { color: colors.textFaint, fontSize: 13 },
+  stylistPill:    { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border },
+  stylistPillActive: { borderColor: colors.electric, backgroundColor: 'rgba(124,58,237,0.1)' },
+  stylistPillText: { color: colors.textDim, fontSize: 13 },
+  stylistPillTextActive: { color: colors.electric, fontWeight: '600' },
+  serviceCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  serviceCardDur:  { color: colors.textFaint, fontSize: 13 },
+  svcPill:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border },
+  svcPillActive:   { borderColor: colors.electric, backgroundColor: 'rgba(124,58,237,0.1)' },
+  svcPillText:     { color: colors.textDim, fontSize: 12 },
+  svcPillTextActive: { color: colors.electric, fontWeight: '600' },
 
-  stepTitle: { color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.sm },
+  // Calendar
+  calendarWrap: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
 
-  optionCard: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border, padding: spacing.md,
-  },
-  optionCardActive: { borderColor: colors.electric, backgroundColor: 'rgba(124,58,237,0.08)' },
-  optionName:  { color: colors.text, fontWeight: '600', fontSize: 15 },
-  optionSub:   { color: colors.textFaint, fontSize: 12, marginTop: 2 },
-  optionPrice: { color: colors.electric, fontWeight: '700', fontSize: 15 },
+  // Time slots
+  slotsLoader:    { alignItems: 'center', paddingVertical: 24 },
+  slotsGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: spacing.sm },
+  slotPill:       { width: (W - spacing.md * 2 - 8 * 3) / 4, paddingVertical: 11, alignItems: 'center', borderRadius: radius.md, backgroundColor: 'rgba(124,58,237,0.1)', borderWidth: 1, borderColor: 'rgba(124,58,237,0.25)' },
+  slotPillSel:    { backgroundColor: colors.electric, borderColor: colors.electric },
+  slotPillBusy:   { backgroundColor: colors.border, borderColor: 'transparent', opacity: 0.4 },
+  slotTxt:        { color: colors.electric, fontWeight: '600', fontSize: 14 },
+  slotTxtSel:     { color: '#fff' },
+  slotTxtBusy:    { color: colors.textFaint },
+  selectDateHint: { color: colors.textFaint, textAlign: 'center', marginTop: spacing.md, fontStyle: 'italic' },
 
-  slotsGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  slotBtn:       { paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  slotBtnActive: { borderColor: colors.electric, backgroundColor: 'rgba(124,58,237,0.12)' },
-  slotBtnBusy:   { opacity: 0.3 },
-  slotText:      { color: colors.textDim, fontWeight: '500', fontSize: 14 },
-  slotTextActive: { color: colors.electric },
-  slotTextBusy:  { color: colors.textFaint },
+  // Sticky bar (datetime step)
+  stickyBar:     { backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.md },
+  stickyBtn:     { backgroundColor: colors.electric, borderRadius: radius.full, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  stickyBtnDisabled: { opacity: 0.35 },
+  stickyBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 
-  stylistAvatar:     { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.electricDim, alignItems: 'center', justifyContent: 'center' },
-  stylistAvatarText: { color: colors.electric, fontWeight: '700' },
+  // Confirmation step
+  confirmDateRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
+  confirmDateTxt: { color: colors.textDim, fontSize: 14 },
 
-  field: { marginBottom: spacing.sm },
-  label: { color: colors.textFaint, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  input: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.text, fontSize: 15 },
+  receiptCard:    { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  promoRow:       { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  promoInput:     { flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 12, color: colors.text, fontSize: 14 },
+  promoApply:     {},
+  promoApplyText: { color: colors.electric, fontWeight: '700', fontSize: 14 },
+  receiptDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+  receiptLine:    { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  receiptLineName:  { color: colors.text, fontWeight: '600', fontSize: 14 },
+  receiptLineSub:   { color: colors.textFaint, fontSize: 12, marginTop: 2 },
+  receiptLinePrice: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  receiptTotal:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  receiptTotalLabel: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  receiptTotalValue: { color: colors.text, fontWeight: '800', fontSize: 18 },
 
-  summaryCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
-  row:         { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  rowLabel:    { color: colors.textFaint, fontSize: 13, width: 80 },
-  rowValue:    { color: colors.text, fontSize: 13, flex: 1, fontWeight: '500' },
-  totalRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs },
-  totalLabel:  { color: colors.textDim, fontWeight: '600' },
-  totalValue:  { color: colors.electric, fontWeight: '700', fontSize: 18 },
+  addNoteRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing.sm },
+  addNoteTxt: { color: colors.electric, fontWeight: '600', fontSize: 14 },
+  notesInput: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.text, fontSize: 14, textAlignVertical: 'top', minHeight: 80, marginBottom: spacing.sm },
 
-  footer:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 12, paddingHorizontal: 4 },
-  backBtnText: { color: colors.textDim, fontWeight: '500' },
-  nextBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.electric, borderRadius: radius.full, paddingVertical: 13, paddingHorizontal: 24 },
-  nextBtnDisabled: { opacity: 0.4 },
-  nextBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  paymentCard:   { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
+  paymentOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  radioActive:   { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.electric, alignItems: 'center', justifyContent: 'center' },
+  radioDot:      { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.electric },
+  paymentOptionText: { color: colors.text, fontSize: 15, fontWeight: '500' },
+
+  newsletterCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  newsletterText: { color: colors.textDim, fontSize: 14, flex: 1, lineHeight: 20 },
+
+  // Sticky confirm bar
+  stickyBarConfirm: { backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  stickyPrice:      { color: colors.text, fontSize: 18, fontWeight: '800', minWidth: 60 },
+  confirmBtn:       { flex: 1, backgroundColor: colors.electric, borderRadius: radius.full, paddingVertical: 15, alignItems: 'center', justifyContent: 'center' },
+  confirmBtnDisabled: { opacity: 0.4 },
+  confirmBtnText:   { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
