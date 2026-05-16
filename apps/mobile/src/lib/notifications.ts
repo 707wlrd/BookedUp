@@ -22,7 +22,7 @@ export async function registerForPushAsync(): Promise<string | null> {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
       importance: Notifications.AndroidImportance.HIGH,
-      lightColor: '#3b82ff',
+      lightColor: '#7c3aed',
     });
   }
 
