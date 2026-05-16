@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { Search, MapPin, X, SlidersHorizontal } from 'lucide-react';
 import { Nav } from '@/components/marketing/Nav';

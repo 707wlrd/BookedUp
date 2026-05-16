@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { StudioSidebar } from '@/components/studio/Sidebar';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Studio — BookedUp' };
 
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {
