@@ -16,17 +16,17 @@ const config: Config = {
           500: '#2a2e3f',
         },
         electric: {
-          DEFAULT: '#3b82ff',
-          50:  '#eaf1ff',
-          100: '#d4e3ff',
-          200: '#a8c7ff',
-          300: '#7dabff',
-          400: '#5294ff',
-          500: '#3b82ff',
-          600: '#1f63e6',
-          700: '#1450bf',
-          800: '#0d3d99',
-          900: '#082a6b',
+          DEFAULT: '#7C3AED',
+          50:  '#f5f3ff',
+          100: '#ede9fe',
+          200: '#ddd6fe',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7c3aed',
+          700: '#6d28d9',
+          800: '#5b21b6',
+          900: '#4c1d95',
         },
         // Booking-conversion warm accent (used sparingly for "Réserver maintenant")
         spark: {
@@ -57,15 +57,15 @@ const config: Config = {
       },
       backgroundImage: {
         'grid-faint': 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)',
-        'glow-blue':  'radial-gradient(60% 60% at 50% 0%, rgba(59,130,255,0.28) 0%, transparent 70%)',
+        'glow-violet': 'radial-gradient(60% 60% at 50% 0%, rgba(124,58,237,0.28) 0%, transparent 70%)',
         'glow-spark': 'radial-gradient(60% 60% at 50% 100%, rgba(245,158,11,0.18) 0%, transparent 70%)',
         'shimmer':    'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%)',
       },
       boxShadow: {
-        'glow':       '0 0 0 1px rgba(59,130,255,0.4), 0 8px 32px -8px rgba(59,130,255,0.5)',
+        'glow':       '0 0 0 1px rgba(124,58,237,0.4), 0 8px 32px -8px rgba(124,58,237,0.5)',
         'glow-spark': '0 0 0 1px rgba(245,158,11,0.4), 0 8px 32px -8px rgba(245,158,11,0.5)',
         'bento':      '0 1px 2px rgba(0,0,0,0.4), 0 4px 16px -4px rgba(0,0,0,0.6)',
-        'card-hover': '0 12px 32px -8px rgba(59,130,255,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
+        'card-hover': '0 12px 32px -8px rgba(124,58,237,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
       },
       keyframes: {
         'fade-up': {
