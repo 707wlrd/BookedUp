@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Star, MapPin, Instagram, BadgeCheck, Clock, ChevronRight, Shield, Users } from 'lucide-react';
+import { Star, MapPin, Instagram, BadgeCheck, Clock, Shield, Users } from 'lucide-react';
 import { Nav } from '@/components/marketing/Nav';
 import { Footer } from '@/components/marketing/Footer';
 import { BookingFlow } from '@/components/booking/BookingFlow';
@@ -216,18 +216,15 @@ export default async function BarberProfilePage({
                   <h2 className="text-lg font-bold tracking-tight">Services</h2>
                   <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
                     {safeServices.map((s, i) => (
-                      <Link
+                      <div
                         key={s.id}
-                        href={`?service=${s.id}`}
-                        scroll={false}
                         className={cn(
-                          'group flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white/[0.04]',
+                          'flex items-center justify-between gap-4 px-5 py-4',
                           i > 0 && 'border-t border-white/[0.05]',
-                          searchParams.service === s.id && 'bg-electric-500/[0.07]',
                         )}
                       >
                         <div className="min-w-0">
-                          <div className="font-medium group-hover:text-white transition-colors">{s.name}</div>
+                          <div className="font-medium">{s.name}</div>
                           <div className="mt-0.5 flex items-center gap-1.5 text-xs text-white/40">
                             <Clock className="h-3 w-3" />
                             {formatDuration(s.duration_minutes)}
@@ -238,18 +235,15 @@ export default async function BarberProfilePage({
                             )}
                           </div>
                         </div>
-                        <div className="flex flex-none items-center gap-4">
-                          <div className="text-right">
-                            <div className="text-base font-bold">{formatPrice(s.price_cents)}</div>
-                            {barber.deposit_required && barber.deposit_amount_cents > 0 && (
-                              <div className="text-[10px] text-spark-400">
-                                {formatPrice(barber.deposit_amount_cents)} d'acompte
-                              </div>
-                            )}
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-white/20 transition group-hover:translate-x-0.5 group-hover:text-white/60" />
+                        <div className="text-right flex-none">
+                          <div className="text-base font-bold">{formatPrice(s.price_cents)}</div>
+                          {barber.deposit_required && barber.deposit_amount_cents > 0 && (
+                            <div className="text-[10px] text-spark-400">
+                              {formatPrice(barber.deposit_amount_cents)} d'acompte
+                            </div>
+                          )}
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </div>
                 </section>
