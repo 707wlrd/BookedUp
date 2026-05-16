@@ -105,10 +105,11 @@ export default function RootLayout() {
         <Stack.Screen name="auth"               options={{ headerShown: false }} />
         <Stack.Screen name="appointment/[id]"   options={{ title: 'Rendez-vous', headerBackTitle: 'Retour' }} />
         <Stack.Screen name="profile"            options={{ headerShown: false }} />
-        <Stack.Screen name="profile-salon"      options={{ title: 'Mon salon', headerBackTitle: 'Profil' }} />
-        <Stack.Screen name="profile-personal"   options={{ title: 'Informations', headerBackTitle: 'Profil' }} />
-        <Stack.Screen name="profile-services"   options={{ title: 'Prestations', headerBackTitle: 'Profil' }} />
-        <Stack.Screen name="profile-stylists"   options={{ title: 'Équipe', headerBackTitle: 'Profil' }} />
+        <Stack.Screen name="profile-salon"      options={{ title: 'Mon salon',              headerBackTitle: 'Profil' }} />
+        <Stack.Screen name="profile-personal"   options={{ title: 'Informations',           headerBackTitle: 'Profil' }} />
+        <Stack.Screen name="profile-services"   options={{ title: 'Prestations & tarifs',   headerBackTitle: 'Profil' }} />
+        <Stack.Screen name="profile-stylists"   options={{ title: 'Équipe',                 headerBackTitle: 'Profil' }} />
+        <Stack.Screen name="profile-hours"      options={{ title: 'Horaires d\'ouverture',  headerBackTitle: 'Profil' }} />
       </Stack>
     </SafeAreaProvider>
   );

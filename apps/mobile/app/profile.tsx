@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView,
+  ActivityIndicator, Alert, Linking, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -84,7 +84,7 @@ export default function ProfileScreen() {
       <Text style={s.sectionLabel}>Mon salon</Text>
       <View style={s.section}>
         <MenuItem icon="storefront-outline"  label="Informations du salon"   onPress={() => router.push('/profile-salon' as any)} />
-        <MenuItem icon="time-outline"        label="Horaires d'ouverture"    onPress={() => Alert.alert('Bientôt disponible', 'La gestion des horaires arrive prochainement.')} />
+        <MenuItem icon="time-outline"        label="Horaires d'ouverture"    onPress={() => router.push('/profile-hours' as any)} />
         <MenuItem icon="cut-outline"         label="Prestations & tarifs"    onPress={() => router.push('/profile-services' as any)} />
         <MenuItem icon="people-outline"      label="Équipe / Stylistes"      onPress={() => router.push('/profile-stylists' as any)} showDivider={false} />
       </View>
@@ -93,16 +93,16 @@ export default function ProfileScreen() {
       <Text style={s.sectionLabel}>Compte</Text>
       <View style={s.section}>
         <MenuItem icon="person-outline"        label="Informations personnelles" onPress={() => router.push('/profile-personal' as any)} />
-        <MenuItem icon="card-outline"          label="Abonnement & facturation"  onPress={() => Alert.alert('Plan Pro', 'Gère ton abonnement depuis bookedup.app')} value="Pro" />
-        <MenuItem icon="notifications-outline" label="Notifications"             onPress={() => Alert.alert('Bientôt disponible', 'La gestion des notifications arrive prochainement.')} showDivider={false} />
+        <MenuItem icon="card-outline"          label="Abonnement & facturation"  onPress={() => Linking.openURL('https://booked-up-web.vercel.app/studio/settings')} value="Pro" />
+        <MenuItem icon="notifications-outline" label="Notifications"             onPress={() => Alert.alert('Notifications activées ✓', 'Tu reçois les alertes de nouvelles réservations et annulations.')} showDivider={false} />
       </View>
 
       {/* ── Aide ── */}
       <Text style={s.sectionLabel}>Aide</Text>
       <View style={s.section}>
-        <MenuItem icon="help-circle-outline"   label="Centre d'aide"             onPress={() => Alert.alert('Bientôt')} />
-        <MenuItem icon="chatbubble-outline"    label="Nous contacter"            onPress={() => Alert.alert('Bientôt')} />
-        <MenuItem icon="document-text-outline" label="Conditions d'utilisation"  onPress={() => Alert.alert('Bientôt')} showDivider={false} />
+        <MenuItem icon="help-circle-outline"   label="Centre d'aide"            onPress={() => Linking.openURL('https://booked-up-web.vercel.app')} />
+        <MenuItem icon="chatbubble-outline"    label="Nous contacter"           onPress={() => Linking.openURL('mailto:hello@bookedup.app')} />
+        <MenuItem icon="document-text-outline" label="Conditions d'utilisation" onPress={() => Linking.openURL('https://booked-up-web.vercel.app')} showDivider={false} />
       </View>
 
       {/* ── Version ── */}
