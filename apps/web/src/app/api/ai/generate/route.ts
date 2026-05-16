@@ -1,11 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { createClient } from '@/lib/supabase/server';
-import Anthropic from '@anthropic-ai/sdk';
-
-// ⚠️  Do NOT initialize the Anthropic client at module level.
-//     If ANTHROPIC_API_KEY is absent the module would crash on cold-start,
-//     causing every request to return 500 instead of a clean 503.
+import Groq from 'groq-sdk';
 
 const SYSTEM =
   'Tu écris pour des barbers et coiffeurs sur les réseaux sociaux. ' +
@@ -42,17 +38,16 @@ function buildPrompt(kind: string, data: Record<string, any>): string {
 }
 
 export async function POST(req: Request) {
-  // ── API key check (before doing anything else) ─────────────────────────
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey.includes('xxx')) {
+  // ── API key check ──────────────────────────────────────────────────────
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
     return new Response(
       JSON.stringify({ error: 'ai_not_configured' }),
       { status: 503, headers: { 'content-type': 'application/json' } },
     );
   }
 
-  // Initialize client inside the handler so missing key never crashes the module
-  const anthropic = new Anthropic({ apiKey });
+  const groq = new Groq({ apiKey });
 
   // ── Auth guard ─────────────────────────────────────────────────────────
   const supabase = createClient();
@@ -104,30 +99,31 @@ export async function POST(req: Request) {
     async start(controller) {
       const enc = new TextEncoder();
       try {
-        const stream = anthropic.messages.stream({
-          model: 'claude-2.1',
+        const stream = await groq.chat.completions.create({
+          model: 'llama-3.1-8b-instant',
           max_tokens: 700,
-          system: SYSTEM,
-          messages: [{ role: 'user', content: prompt }],
+          stream: true,
+          messages: [
+            { role: 'system', content: SYSTEM },
+            { role: 'user',   content: prompt },
+          ],
         });
 
         for await (const chunk of stream) {
-          if (
-            chunk.type === 'content_block_delta' &&
-            chunk.delta.type === 'text_delta'
-          ) {
-            const text = chunk.delta.text;
+          const text = chunk.choices[0]?.delta?.content ?? '';
+          if (text) {
             fullOutput += text;
             controller.enqueue(enc.encode(text));
           }
         }
       } catch (err: any) {
-        // Surface the error to the client as a special prefix
-        controller.enqueue(enc.encode(`\n\n[ERREUR] ${err?.message ?? 'Génération échouée.'}`));
+        controller.enqueue(
+          enc.encode(`\n\n[ERREUR] ${err?.message ?? 'Génération échouée.'}`),
+        );
       } finally {
         controller.close();
 
-        // Log to DB — fire and forget, never blocks the stream
+        // Log to DB — fire and forget
         if (barberId && fullOutput) {
           void supabase.from('ai_generations').insert({
             barber_id: barberId,
