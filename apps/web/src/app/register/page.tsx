@@ -14,6 +14,7 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const defaultRole: Role = searchParams.get('plan') ? 'barber' : 'customer';
+  const nextParam = searchParams.get('next') ?? '';
 
   const [role, setRole] = useState<Role>(defaultRole);
   const [fullName, setFullName] = useState('');
@@ -30,9 +31,11 @@ function RegisterForm() {
     setLoading(true);
     const supabase = createClient();
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=${
-      role === 'barber' ? '/onboarding' : '/'
-    }`;
+    const afterSignup =
+      role === 'barber' ? '/onboarding'
+      : nextParam ? nextParam
+      : '/';
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(afterSignup)}`;
 
     const { error } = await supabase.auth.signUp({
       email,

@@ -14,10 +14,11 @@ function toTime(minutes: number) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/** Extract minutes from midnight from an ISO string (local time) */
+/** Extract minutes from midnight from an ISO string.
+ *  Uses UTC to stay consistent with naive ISO strings stored without timezone offset. */
 function isoToMin(iso: string) {
   const d = new Date(iso);
-  return d.getHours() * 60 + d.getMinutes();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 export async function GET(req: Request) {
@@ -65,9 +66,10 @@ export async function GET(req: Request) {
 
   if (useMultiStylist) {
     // Multi-stylist mode: slot available if nb of conflicting stylists < totalStylists
-    const appointments = (booked ?? []).map((a: { starts_at: string; ends_at: string; stylist_id?: string | null }) => ({
-      start: isoToMin(a.starts_at),
-      end:   isoToMin(a.ends_at),
+    const raw = (booked ?? []) as unknown as Array<{ starts_at: string; ends_at: string; stylist_id?: string | null }>;
+    const appointments = raw.map((a) => ({
+      start:     isoToMin(a.starts_at),
+      end:       isoToMin(a.ends_at),
       stylistId: a.stylist_id ?? null,
     }));
 
@@ -85,7 +87,8 @@ export async function GET(req: Request) {
     }
   } else {
     // Single stylist or no-stylist mode: slot blocked if any appointment conflicts
-    const occupied = (booked ?? []).map((a: { starts_at: string; ends_at: string }) => ({
+    const bookedSimple = (booked ?? []) as unknown as Array<{ starts_at: string; ends_at: string }>;
+    const occupied = bookedSimple.map((a) => ({
       start: isoToMin(a.starts_at),
       end:   isoToMin(a.ends_at),
     }));

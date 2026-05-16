@@ -1,10 +1,15 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Clock, ArrowLeft, ArrowRight, Calendar, ShieldCheck, User, RefreshCw } from 'lucide-react';
+import {
+  Check, Clock, ArrowLeft, ArrowRight, Calendar, ShieldCheck,
+  RefreshCw, LogIn, AlertCircle,
+} from 'lucide-react';
 import type { Barber, Service } from '@bookedup/shared';
 import { Button } from '@/components/ui/Button';
 import { cn, formatPrice, formatDuration } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 type Stylist = {
   id: string;
@@ -15,14 +20,16 @@ type Stylist = {
 };
 
 type B = Barber & { services: Service[]; stylists?: Stylist[] };
-
 type Slot = { time: string; available: boolean };
 
 export function BookingFlow({ barber, initialServiceId }: { barber: B; initialServiceId?: string }) {
-  const stylists = barber.stylists ?? [];
+  const router   = useRouter();
+  const pathname = usePathname();
+
+  const stylists    = barber.stylists ?? [];
   const hasStylists = stylists.length > 0;
 
-  // Build dynamic step list — new order: Service → Date & heure → Coiffeur → Tes infos → Paiement
+  // Build dynamic step list — Service → Date & heure → Coiffeur → Tes infos → Paiement
   const STEPS = useMemo(
     () =>
       hasStylists
@@ -31,7 +38,6 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
     [hasStylists],
   );
 
-  // Named step indices — avoids magic numbers everywhere
   const si = useMemo(() => ({
     service:  0,
     datetime: 1,
@@ -44,26 +50,71 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
   // ── State ───────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
   const [serviceId, setServiceId] = useState<string | null>(initialServiceId ?? null);
-  // Auto-select if single stylist
-  const [stylistId, setStylistId] = useState<string | null>(
+
+  // Stylist: null = no preference / not yet chosen, UUID = specific choice
+  // stylistChosen tracks if user made an explicit choice (including "no preference")
+  const [stylistId,     setStylistId]     = useState<string | null>(
     stylists.length === 1 ? stylists[0].id : null,
   );
-  const [date, setDate] = useState<string | null>(null);
-  const [time, setTime] = useState<string | null>(null);
-  const [name, setName] = useState('');
+  const [stylistChosen, setStylistChosen] = useState(stylists.length === 1);
+
+  const [date,  setDate]  = useState<string | null>(null);
+  const [time,  setTime]  = useState<string | null>(null);
+  const [name,  setName]  = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [recurring, setRecurring] = useState(false);
+
+  const [submitting,    setSubmitting]    = useState(false);
+  const [bookingError,  setBookingError]  = useState<string | null>(null);
+  const [recurring,     setRecurring]     = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(1);
   const [recurringCount, setRecurringCount] = useState(4);
-  const [seriesResult, setSeriesResult] = useState<{ series_id: string; total_created: number } | null>(null);
+  const [seriesResult,  setSeriesResult]  = useState<{ series_id: string; total_created: number } | null>(null);
 
   // Availability
-  const [slots, setSlots] = useState<Slot[]>([]);
+  const [slots,        setSlots]        = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [availableStylistIds, setAvailableStylistIds] = useState<string[]>([]);
 
+  // Auth
+  const [user,        setUser]        = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // ── On mount: check auth + restore saved state (post-login redirect) ────
+  const STORAGE_KEY = `booking_state_${barber.id}`;
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Restore state saved before login redirect
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (s.serviceId)    setServiceId(s.serviceId);
+        if (s.date)         setDate(s.date);
+        if (s.time)         setTime(s.time);
+        if (s.stylistId)    setStylistId(s.stylistId);
+        if (s.stylistChosen) setStylistChosen(s.stylistChosen);
+        if (typeof s.targetStep === 'number') setStep(s.targetStep);
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {}
+
+    // Check auth & pre-fill info from profile
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      if (u) {
+        setUser(u);
+        const fullName = u.user_metadata?.full_name ?? '';
+        if (fullName) setName(prev => prev || fullName);
+        if (u.email)  setEmail(prev => prev || u.email!);
+      }
+      setAuthLoading(false);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barber.id]);
+
+  // ── Derived ─────────────────────────────────────────────────────────────
   const service = useMemo(
     () => barber.services.find((s) => s.id === serviceId),
     [serviceId, barber.services],
@@ -73,14 +124,12 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
     [stylistId, stylists],
   );
 
-  // ── Fetch slots whenever date/service changes (step datetime) ───────────
-  // Multi-stylist mode: pass stylist_count so a slot is free if at least one stylist is free.
-  // If a specific stylist is already selected (shouldn't happen normally in new flow), filter by that stylist.
+  // ── Fetch slots when date/service change ────────────────────────────────
   useEffect(() => {
     if (!date || !service) { setSlots([]); return; }
 
     setSlotsLoading(true);
-    setTime(null); // reset time on any change
+    setTime(null);
 
     const params = new URLSearchParams({
       barber_id: barber.id,
@@ -98,19 +147,20 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
       .then(r => r.json())
       .then(d => { setSlots(d.slots ?? []); setSlotsLoading(false); })
       .catch(() => setSlotsLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, stylistId, service?.duration_minutes, barber.id, hasStylists, stylists.length]);
 
-  // ── Fetch available stylists when date+time are set (step stylist) ───────
+  // ── Fetch available stylists when date+time set ─────────────────────────
   useEffect(() => {
     if (!hasStylists || !date || !time || !service) {
       setAvailableStylistIds([]);
       return;
     }
     const params = new URLSearchParams({
-      barber_id: barber.id,
+      barber_id:   barber.id,
       date,
       time,
-      duration: String(service.duration_minutes),
+      duration:    String(service.duration_minutes),
       stylist_ids: stylists.map(s => s.id).join(','),
     });
     fetch(`/api/available-stylists?${params}`)
@@ -118,54 +168,95 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
       .then(d => {
         const available: string[] = d.available ?? [];
         setAvailableStylistIds(available);
-        // Auto-select if only one stylist available
-        if (available.length === 1) setStylistId(available[0]);
+        // Auto-select + auto-choose if only one available
+        if (available.length === 1) {
+          setStylistId(available[0]);
+          setStylistChosen(true);
+        }
       })
       .catch(() => setAvailableStylistIds([]));
-  }, [date, time, service?.duration_minutes, barber.id, hasStylists, stylists]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, time, service?.duration_minutes, barber.id, hasStylists, stylists.length]);
 
   // ── canNext ──────────────────────────────────────────────────────────────
   const canNext =
-    (step === si.service && !!serviceId) ||
+    (step === si.service  && !!serviceId) ||
     (step === si.datetime && !!date && !!time) ||
-    (hasStylists && step === si.stylist && !!stylistId) ||
-    (step === si.info && name.length > 1 && /.+@.+\..+/.test(email));
+    (hasStylists && step === si.stylist && stylistChosen) ||
+    (step === si.info && name.trim().length > 1 && /.+@.+\..+/.test(email));
 
-  // ── Confirm ──────────────────────────────────────────────────────────────
+  // ── Navigate (with auth gate before info step) ──────────────────────────
+  function handleNext() {
+    const nextStep = step + 1;
+    // Auth gate: must be logged in to reach info step
+    if (nextStep === si.info && !user && !authLoading) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+        serviceId,
+        date,
+        time,
+        stylistId,
+        stylistChosen,
+        targetStep: si.info,
+      }));
+      router.push(`/login?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    setStep(nextStep);
+  }
+
+  // ── Confirm booking ──────────────────────────────────────────────────────
   async function handleConfirm() {
     if (!service || !date || !time) return;
     setSubmitting(true);
+    setBookingError(null);
     try {
-      const startsAt = new Date(`${date}T${time}:00`);
-      const endsAt = new Date(startsAt.getTime() + service.duration_minutes * 60_000);
+      // Build naive ISO timestamps (no TZ conversion) so the server and client
+      // both treat "14:00" as exactly 14:00 UTC, avoiding 1-2h drift on Vercel.
+      const [h, m] = time.split(':').map(Number);
+      const totalEndMin = h * 60 + m + service.duration_minutes;
+      const endH = String(Math.floor(totalEndMin / 60)).padStart(2, '0');
+      const endM = String(totalEndMin % 60).padStart(2, '0');
+      const startsAtStr = `${date}T${time}:00`;
+      const endsAtStr   = `${date}T${endH}:${endM}:00`;
+
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          barber_id: barber.id,
-          service_id: service.id,
-          stylist_id: stylistId ?? null,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-          customer_name: name,
-          customer_email: email,
-          customer_phone: phone,
+          barber_id:      barber.id,
+          service_id:     service.id,
+          stylist_id:     stylistId ?? null,
+          starts_at:      startsAtStr,
+          ends_at:        endsAtStr,
+          customer_name:  name.trim(),
+          customer_email: email.trim(),
+          customer_phone: phone || undefined,
           ...(recurring ? { recurring_weeks: recurringWeeks, recurring_count: recurringCount } : {}),
         }),
       });
       const data = await res.json();
       if (data.checkout_url) { window.location.href = data.checkout_url; return; }
-      if (data.error) { setSubmitting(false); return; }
+      if (data.error) {
+        setBookingError(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Une erreur est survenue. Réessaie.',
+        );
+        setSubmitting(false);
+        return;
+      }
       if (data.series_id) {
         setSeriesResult({ series_id: data.series_id, total_created: data.total_created });
       }
       setStep(si.done);
-    } catch { setSubmitting(false); }
+    } catch (e: any) {
+      setBookingError('Connexion impossible. Vérifie ta connexion et réessaie.');
+      setSubmitting(false);
+    }
   }
 
-  const isLastInputStep = step === si.payment - 1;
-  const isPaymentStep   = step === si.payment;
-  const isDone          = step === si.done;
+  const isPaymentStep = step === si.payment;
+  const isDone        = step === si.done;
 
   return (
     <div className="card overflow-hidden">
@@ -216,6 +307,7 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
             exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.2 }}
           >
+
             {/* Step: Service */}
             {step === si.service && (
               <div className="space-y-2">
@@ -240,12 +332,10 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-lg font-bold">{formatPrice(s.price_cents)}</div>
-                        <div
-                          className={cn(
-                            'grid h-5 w-5 place-items-center rounded-full border transition',
-                            selected ? 'border-electric-400 bg-electric-500' : 'border-white/20',
-                          )}
-                        >
+                        <div className={cn(
+                          'grid h-5 w-5 place-items-center rounded-full border transition',
+                          selected ? 'border-electric-400 bg-electric-500' : 'border-white/20',
+                        )}>
                           {selected && <Check className="h-3 w-3 text-white" />}
                         </div>
                       </div>
@@ -264,23 +354,31 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                 setTime={setTime}
                 slots={slots}
                 slotsLoading={slotsLoading}
-                needsStylist={false}
               />
             )}
 
-            {/* Step: Coiffeur (only if stylists exist) — after date+time */}
+            {/* Step: Coiffeur */}
             {hasStylists && step === si.stylist && (
               <StylistPicker
                 stylists={stylists}
                 selected={stylistId}
-                onSelect={setStylistId}
+                chosen={stylistChosen}
+                onSelect={(id) => { setStylistId(id); setStylistChosen(true); }}
+                onAny={() => { setStylistId(null); setStylistChosen(true); }}
                 availableIds={availableStylistIds}
               />
             )}
 
-            {/* Step: Infos */}
+            {/* Step: Tes infos */}
             {step === si.info && (
               <div className="space-y-4">
+                {/* Auth badge */}
+                {user && (
+                  <div className="flex items-center gap-2 rounded-xl border border-electric-500/20 bg-electric-500/[0.06] px-3 py-2 text-xs text-electric-300">
+                    <Check className="h-3.5 w-3.5 flex-none" />
+                    Connecté en tant que <span className="font-semibold">{user.email}</span>
+                  </div>
+                )}
                 <div>
                   <label className="label">Nom complet</label>
                   <input
@@ -288,6 +386,7 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                     onChange={(e) => setName(e.target.value)}
                     className="input mt-1.5"
                     placeholder="Karim Larbi"
+                    autoComplete="name"
                   />
                 </div>
                 <div>
@@ -298,6 +397,7 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                     onChange={(e) => setEmail(e.target.value)}
                     className="input mt-1.5"
                     placeholder="karim@mail.fr"
+                    autoComplete="email"
                   />
                 </div>
                 <div>
@@ -307,34 +407,29 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                     onChange={(e) => setPhone(e.target.value)}
                     className="input mt-1.5"
                     placeholder="06 12 34 56 78"
+                    autoComplete="tel"
                   />
                 </div>
-                {/* Option récurrence */}
+
+                {/* Récurrence */}
                 <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
                   <button
                     type="button"
                     onClick={() => setRecurring(v => !v)}
-                    className="flex items-center justify-between w-full"
+                    className="flex w-full items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
                       <RefreshCw className="h-4 w-4 text-white/40" />
                       <span className="text-sm font-medium">Répéter ce RDV</span>
                     </div>
-                    {/* Toggle */}
-                    <span
-                      className={cn(
-                        'relative inline-flex h-5 w-9 flex-none items-center rounded-full border transition-colors duration-200',
-                        recurring
-                          ? 'border-electric-500/50 bg-electric-500/30'
-                          : 'border-white/20 bg-white/[0.06]',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform duration-200',
-                          recurring ? 'translate-x-4' : 'translate-x-0.5',
-                        )}
-                      />
+                    <span className={cn(
+                      'relative inline-flex h-5 w-9 flex-none items-center rounded-full border transition-colors duration-200',
+                      recurring ? 'border-electric-500/50 bg-electric-500/30' : 'border-white/20 bg-white/[0.06]',
+                    )}>
+                      <span className={cn(
+                        'inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform duration-200',
+                        recurring ? 'translate-x-4' : 'translate-x-0.5',
+                      )} />
                     </span>
                   </button>
 
@@ -376,12 +471,13 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
             )}
 
             {/* Step: Paiement / Récap */}
-            {step === si.payment && service && date && time && (
+            {isPaymentStep && service && date && time && (
               <div>
                 <h3 className="text-base font-bold">Récapitulatif</h3>
                 <div className="mt-4 space-y-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 text-sm">
                   <Row label="Service" value={service.name} />
-                  {stylist && <Row label="Coiffeur" value={stylist.name} />}
+                  {stylist   && <Row label="Coiffeur" value={stylist.name} />}
+                  {!stylist && stylistChosen && hasStylists && <Row label="Coiffeur" value="Peu importe" />}
                   <Row label="Durée" value={formatDuration(service.duration_minutes)} />
                   <Row
                     label="Date"
@@ -389,6 +485,7 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                       dateStyle: 'full', timeStyle: 'short',
                     })}
                   />
+                  <Row label="Client" value={name} />
                   <div className="my-3 border-t border-white/[0.06]" />
                   <Row label="Total" value={formatPrice(service.price_cents)} bold />
                   {barber.deposit_required && (
@@ -399,6 +496,15 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                     />
                   )}
                 </div>
+
+                {/* Error display */}
+                {bookingError && (
+                  <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
+                    {bookingError}
+                  </div>
+                )}
+
                 <p className="mt-3 flex items-start gap-2 text-xs text-white/45">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 flex-none text-electric-300" />
                   Paiement sécurisé par Stripe. Tu peux annuler gratuitement jusqu'à 24h avant ton RDV.
@@ -407,7 +513,7 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
             )}
 
             {/* Done */}
-            {step === si.done && (
+            {isDone && (
               <div className="py-12 text-center">
                 <motion.div
                   initial={{ scale: 0 }}
@@ -427,10 +533,11 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                 )}
               </div>
             )}
+
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation */}
+        {/* ── Navigation ── */}
         {!isDone && !isPaymentStep && (
           <div className="mt-8 flex items-center justify-between">
             <Button
@@ -441,11 +548,20 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
             >
               <ArrowLeft className="h-4 w-4" /> Retour
             </Button>
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
-              Continuer <ArrowRight className="h-4 w-4" />
-            </Button>
+
+            {/* Show "login required" hint when advancing to info step and not logged in */}
+            {step === (hasStylists ? si.stylist : si.datetime) && !user && !authLoading ? (
+              <Button onClick={handleNext} disabled={!canNext}>
+                <LogIn className="h-4 w-4" /> Se connecter pour continuer
+              </Button>
+            ) : (
+              <Button onClick={handleNext} disabled={!canNext}>
+                Continuer <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
+
         {isPaymentStep && (
           <div className="mt-8 flex items-center justify-between">
             <Button variant="subtle" size="md" onClick={() => setStep(si.info)}>
@@ -475,38 +591,68 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
 function StylistPicker({
   stylists,
   selected,
+  chosen,
   onSelect,
+  onAny,
   availableIds,
 }: {
   stylists: Stylist[];
   selected: string | null;
+  chosen: boolean;
   onSelect: (id: string) => void;
-  /** IDs of stylists free at the chosen slot. Empty array = not yet fetched (show all). */
+  onAny: () => void;
   availableIds?: string[];
 }) {
-  // If availableIds is provided and non-empty, use it to filter; otherwise show all as available
-  const hasFilter = availableIds !== undefined && availableIds.length >= 0;
+  const anyChosen = chosen && selected === null;
 
   return (
     <div className="space-y-2">
       <p className="mb-4 text-sm text-white/50">
-        Choisis ton coiffeur parmi ceux disponibles à ce créneau.
+        Choisis ton coiffeur pour ce créneau, ou laisse-nous choisir le premier disponible.
       </p>
+
+      {/* "No preference" option */}
+      <button
+        onClick={onAny}
+        className={cn(
+          'flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all duration-150',
+          anyChosen
+            ? 'border-electric-500/50 bg-electric-500/[0.08] shadow-glow'
+            : 'border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]',
+        )}
+      >
+        <div className={cn(
+          'flex h-12 w-12 flex-none items-center justify-center rounded-xl text-lg font-bold transition',
+          anyChosen ? 'bg-electric-500 text-white' : 'bg-white/[0.06] text-white/40',
+        )}>
+          ✦
+        </div>
+        <div className="flex-1">
+          <div className="font-semibold">Peu importe</div>
+          <div className="mt-0.5 text-xs text-white/45">Le premier coiffeur disponible</div>
+        </div>
+        <div className={cn(
+          'grid h-5 w-5 flex-none place-items-center rounded-full border transition',
+          anyChosen ? 'border-electric-400 bg-electric-500' : 'border-white/20',
+        )}>
+          {anyChosen && <Check className="h-3 w-3 text-white" />}
+        </div>
+      </button>
+
       {stylists.map((s) => {
-        const isSel = selected === s.id;
-        // When availableIds has been fetched (array exists), check availability
-        const isAvailable = !availableIds || availableIds.length === 0 || availableIds.includes(s.id);
+        const isSel      = selected === s.id;
+        const isAvail    = !availableIds || availableIds.length === 0 || availableIds.includes(s.id);
         return (
           <button
             key={s.id}
-            onClick={() => isAvailable && onSelect(s.id)}
-            disabled={!isAvailable}
+            onClick={() => isAvail && onSelect(s.id)}
+            disabled={!isAvail}
             className={cn(
               'flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all duration-150',
-              !isAvailable && 'cursor-not-allowed opacity-40',
-              isAvailable && isSel
+              !isAvail && 'cursor-not-allowed opacity-40',
+              isAvail && isSel
                 ? 'border-electric-500/50 bg-electric-500/[0.08] shadow-glow'
-                : isAvailable
+                : isAvail
                 ? 'border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
                 : 'border-white/[0.06] bg-white/[0.01]',
             )}
@@ -523,23 +669,22 @@ function StylistPicker({
                   : {}
               }
             >
-              {!s.avatar_url && (s.name.charAt(0).toUpperCase() || <User className="h-5 w-5" />)}
+              {!s.avatar_url && s.name.charAt(0).toUpperCase()}
             </div>
 
             {/* Info */}
             <div className="min-w-0 flex-1">
               <div className="font-semibold">{s.name}</div>
-              {!isAvailable && (
+              {!isAvail && (
                 <div className="mt-0.5 text-xs text-white/35">Non disponible à ce créneau</div>
               )}
-              {isAvailable && s.bio && <div className="mt-0.5 truncate text-xs text-white/45">{s.bio}</div>}
-              {isAvailable && s.specialties && s.specialties.length > 0 && (
+              {isAvail && s.bio && (
+                <div className="mt-0.5 truncate text-xs text-white/45">{s.bio}</div>
+              )}
+              {isAvail && s.specialties && s.specialties.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {s.specialties.map((sp) => (
-                    <span
-                      key={sp}
-                      className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-white/50"
-                    >
+                    <span key={sp} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-white/50">
                       {sp}
                     </span>
                   ))}
@@ -548,12 +693,10 @@ function StylistPicker({
             </div>
 
             {/* Check */}
-            <div
-              className={cn(
-                'grid h-5 w-5 flex-none place-items-center rounded-full border transition',
-                isSel ? 'border-electric-400 bg-electric-500' : 'border-white/20',
-              )}
-            >
+            <div className={cn(
+              'grid h-5 w-5 flex-none place-items-center rounded-full border transition',
+              isSel ? 'border-electric-400 bg-electric-500' : 'border-white/20',
+            )}>
               {isSel && <Check className="h-3 w-3 text-white" />}
             </div>
           </button>
@@ -566,7 +709,7 @@ function StylistPicker({
 // ── Date & time picker ─────────────────────────────────────────────────────
 
 function DateTimePicker({
-  date, setDate, time, setTime, slots, slotsLoading, needsStylist,
+  date, setDate, time, setTime, slots, slotsLoading,
 }: {
   date: string | null;
   setDate: (v: string) => void;
@@ -574,7 +717,6 @@ function DateTimePicker({
   setTime: (v: string) => void;
   slots: Slot[];
   slotsLoading: boolean;
-  needsStylist: boolean;
 }) {
   const days = useMemo(() => {
     const arr: Date[] = [];
@@ -594,7 +736,7 @@ function DateTimePicker({
       </div>
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
         {days.map((d) => {
-          const iso = d.toISOString().slice(0, 10);
+          const iso   = d.toISOString().slice(0, 10);
           const isSel = iso === date;
           return (
             <button
@@ -624,11 +766,7 @@ function DateTimePicker({
         <Clock className="h-4 w-4 text-electric-300" /> Choisis un créneau
       </div>
 
-      {needsStylist ? (
-        <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-white/40">
-          Retourne à l'étape précédente pour choisir un coiffeur.
-        </p>
-      ) : !date ? (
+      {!date ? (
         <p className="text-sm text-white/35">Sélectionne un jour pour voir les disponibilités.</p>
       ) : slotsLoading ? (
         <div className="flex items-center gap-2 py-4 text-sm text-white/40">
@@ -669,16 +807,8 @@ function DateTimePicker({
 
 // ── Summary row ────────────────────────────────────────────────────────────
 
-function Row({
-  label,
-  value,
-  bold,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  bold?: boolean;
-  highlight?: boolean;
+function Row({ label, value, bold, highlight }: {
+  label: string; value: string; bold?: boolean; highlight?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">

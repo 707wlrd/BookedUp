@@ -11,8 +11,9 @@ const Body = z.object({
   barber_id:    z.string().uuid(),
   service_id:   z.string().min(1),
   stylist_id:   z.string().uuid().optional().nullable(),
-  starts_at:    z.string().datetime(),
-  ends_at:      z.string().datetime(),
+  // Accept both "YYYY-MM-DDTHH:MM:SS" (naive/local) and full ISO with Z
+  starts_at:    z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),
+  ends_at:      z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/),
   customer_name:  z.string().min(1),
   customer_email: z.string().email(),
   customer_phone: z.string().optional(),

@@ -115,8 +115,19 @@ export default function AIStudioPage() {
         body: JSON.stringify(body),
       });
 
-      if (!res.ok || !res.body) {
-        setOutput('Erreur — vérifie ta clé ANTHROPIC_API_KEY dans .env.local.');
+      if (!res.ok) {
+        if (res.status === 503) {
+          setOutput('⚠️ Clé API Anthropic non configurée.\nAjoute ANTHROPIC_API_KEY dans les variables d\'environnement Vercel.');
+        } else if (res.status === 401) {
+          setOutput('⚠️ Tu dois être connecté pour utiliser l\'AI Studio.');
+        } else {
+          setOutput(`⚠️ Erreur ${res.status} — réessaie dans quelques instants.`);
+        }
+        return;
+      }
+
+      if (!res.body) {
+        setOutput('⚠️ Réponse vide du serveur. Réessaie.');
         return;
       }
 
@@ -133,7 +144,7 @@ export default function AIStudioPage() {
         outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight, behavior: 'smooth' });
       }
     } catch {
-      setOutput('Erreur de connexion. Réessaie.');
+      setOutput('⚠️ Erreur de connexion. Vérifie ta connexion et réessaie.');
     } finally {
       setStreaming(false);
     }

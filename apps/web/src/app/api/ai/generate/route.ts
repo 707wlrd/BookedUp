@@ -1,7 +1,11 @@
+export const dynamic = 'force-dynamic';
+
 import { createClient } from '@/lib/supabase/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ⚠️  Do NOT initialize the Anthropic client at module level.
+//     If ANTHROPIC_API_KEY is absent the module would crash on cold-start,
+//     causing every request to return 500 instead of a clean 503.
 
 const SYSTEM =
   'Tu écris pour des barbers et coiffeurs sur les réseaux sociaux. ' +
@@ -38,46 +42,75 @@ function buildPrompt(kind: string, data: Record<string, any>): string {
 }
 
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return new Response('ANTHROPIC_API_KEY manquante', { status: 503 });
+  // ── API key check (before doing anything else) ─────────────────────────
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || apiKey.includes('xxx')) {
+    return new Response(
+      JSON.stringify({ error: 'ai_not_configured' }),
+      { status: 503, headers: { 'content-type': 'application/json' } },
+    );
   }
+
+  // Initialize client inside the handler so missing key never crashes the module
+  const anthropic = new Anthropic({ apiKey });
 
   // ── Auth guard ─────────────────────────────────────────────────────────
-  const supabaseAuth = createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401, headers: { 'content-type': 'application/json' },
+    });
   }
 
-  const { kind, barberId, ...data } = await req.json();
+  let body: Record<string, any>;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'invalid_json' }), {
+      status: 400, headers: { 'content-type': 'application/json' },
+    });
+  }
 
-  // Verify the barber belongs to the authenticated user
+  const { kind, barberId, ...data } = body;
+
+  if (!kind) {
+    return new Response(JSON.stringify({ error: 'missing_kind' }), {
+      status: 400, headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  // ── Verify barber ownership ────────────────────────────────────────────
   if (barberId) {
-    const { data: barber } = await supabaseAuth
+    const { data: barber } = await supabase
       .from('barbers')
       .select('id')
       .eq('id', barberId)
       .eq('owner_id', user.id)
       .single();
     if (!barber) {
-      return new Response('Forbidden', { status: 403 });
+      return new Response(JSON.stringify({ error: 'forbidden' }), {
+        status: 403, headers: { 'content-type': 'application/json' },
+      });
     }
   }
 
-  const stream = anthropic.messages.stream({
-    model: 'claude-3-5-haiku-20241022',
-    max_tokens: 600,
-    system: SYSTEM,
-    messages: [{ role: 'user', content: buildPrompt(kind, data) }],
-  });
+  const prompt = buildPrompt(kind, data);
 
-  // Collect full output for DB logging
+  // ── Stream response ────────────────────────────────────────────────────
   let fullOutput = '';
 
   const readable = new ReadableStream({
     async start(controller) {
       const enc = new TextEncoder();
       try {
+        const stream = anthropic.messages.stream({
+          model: 'claude-3-5-haiku-20241022',
+          max_tokens: 700,
+          system: SYSTEM,
+          messages: [{ role: 'user', content: prompt }],
+        });
+
         for await (const chunk of stream) {
           if (
             chunk.type === 'content_block_delta' &&
@@ -88,19 +121,20 @@ export async function POST(req: Request) {
             controller.enqueue(enc.encode(text));
           }
         }
+      } catch (err: any) {
+        // Surface the error to the client as a special prefix
+        controller.enqueue(enc.encode(`\n\n[ERREUR] ${err?.message ?? 'Génération échouée.'}`));
       } finally {
         controller.close();
 
-        // Log to DB (fire & forget)
-        if (barberId) {
-          try {
-            await supabaseAuth.from('ai_generations').insert({
-              barber_id: barberId,
-              kind,
-              prompt: buildPrompt(kind, data),
-              output: fullOutput,
-            });
-          } catch { /* non-blocking */ }
+        // Log to DB — fire and forget, never blocks the stream
+        if (barberId && fullOutput) {
+          void supabase.from('ai_generations').insert({
+            barber_id: barberId,
+            kind,
+            prompt,
+            output: fullOutput,
+          });
         }
       }
     },
@@ -109,8 +143,8 @@ export async function POST(req: Request) {
   return new Response(readable, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
-      'Transfer-Encoding': 'chunked',
       'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-store',
     },
   });
 }

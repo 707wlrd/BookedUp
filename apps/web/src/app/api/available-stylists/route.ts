@@ -7,10 +7,11 @@ function toMin(time: string) {
   return h * 60 + m;
 }
 
-/** Extract minutes from midnight from an ISO string (local time) */
+/** Extract minutes from midnight from an ISO string.
+ *  Uses UTC to stay consistent with naive ISO strings stored without timezone offset. */
 function isoToMin(iso: string) {
   const d = new Date(iso);
-  return d.getHours() * 60 + d.getMinutes();
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 /**
