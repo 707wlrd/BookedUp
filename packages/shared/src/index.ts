@@ -3,7 +3,7 @@
 export type UserRole = 'customer' | 'barber' | 'admin';
 export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
-export type SubscriptionTier = 'free' | 'pro' | 'premium';
+export type SubscriptionTier = 'free' | 'pro';
 
 export interface Profile {
   id: string;
@@ -92,29 +92,28 @@ export interface Review {
 // ─── Pricing ──────────────────────────────────────────────
 export const PLANS = {
   free: {
-    name: 'Free',
+    name: 'Gratuit',
     price_eur: 0,
-    appointment_limit: 30,
-    features: ['Réservations en ligne', 'Profil public', "Jusqu'à 30 RDV / mois"],
+    appointment_limit: null,
+    trial_days: 30,
+    features: [
+      '1 mois gratuit — toutes les fonctionnalités',
+      'Réservations en ligne illimitées',
+      'Profil public',
+      'Rappels email automatiques',
+      'Accès à toutes les fonctionnalités Pro',
+    ],
   },
   pro: {
     name: 'Pro',
-    price_eur: 19,
+    price_eur: 29.99,
     appointment_limit: null,
+    trial_days: 0,
     features: [
       'RDV illimités',
       'Acomptes Stripe',
       'Rappels SMS/email',
-      'Analytics',
-      'Portfolio illimité',
-    ],
-  },
-  premium: {
-    name: 'Premium',
-    price_eur: 49,
-    appointment_limit: null,
-    features: [
-      'Tout le plan Pro',
+      'Analytics avancées',
       'IA — captions Instagram',
       'IA — stories disponibilités',
       'IA — rappels intelligents',

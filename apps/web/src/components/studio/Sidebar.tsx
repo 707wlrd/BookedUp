@@ -77,11 +77,11 @@ export function StudioSidebar({ userEmail, userName, shopName, plan }: Props) {
           <div className="flex items-center justify-between">
             <span className={cn(
               'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-              plan === 'pro' || plan === 'premium'
+              plan === 'pro'
                 ? 'bg-electric-500/20 text-electric-300 border border-electric-500/30'
                 : 'bg-white/[0.06] text-white/40 border border-white/10',
             )}>
-              Plan {plan === 'free' ? 'Gratuit' : plan === 'pro' ? 'Pro' : 'Premium'}
+              Plan {plan === 'free' ? 'Gratuit' : 'Pro'}
             </span>
             {plan === 'free' && (
               <Link href="/studio/settings#billing" className="text-[10px] text-spark-400 hover:text-spark-300">

@@ -4,7 +4,7 @@ import { stripe, PRICE_IDS, type PaidTier } from '@/lib/stripe';
 import { createClient } from '@/lib/supabase/server';
 
 const Body = z.object({
-  tier: z.enum(['pro', 'premium']),
+  tier: z.enum(['pro']),
 });
 
 export async function POST(req: Request) {
