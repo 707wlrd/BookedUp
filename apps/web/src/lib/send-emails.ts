@@ -2,7 +2,7 @@
  * Central email sending helpers.
  * Wraps Resend so the API routes stay clean.
  */
-import { resend, FROM_EMAIL } from '@/lib/resend';
+import { getResend, FROM_EMAIL } from '@/lib/resend';
 import {
   emailCustomerConfirmation,
   emailCustomerDepositPaid,
@@ -21,12 +21,12 @@ import {
 
 async function send(to: string | string[], subject: string, html: string) {
   // Skip silently if no API key configured (dev without Resend account)
-  if (!process.env.RESEND_API_KEY) {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'xxx') {
     console.log(`[email] Would send "${subject}" to ${to} (RESEND_API_KEY not set)`);
     return;
   }
   try {
-    await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+    await getResend().emails.send({ from: FROM_EMAIL, to, subject, html });
   } catch (err: any) {
     console.error('[email] Resend error:', err?.message ?? err);
   }
