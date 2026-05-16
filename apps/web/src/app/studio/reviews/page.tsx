@@ -30,20 +30,20 @@ export default function ReviewsPage() {
   useEffect(() => {
     fetch('/api/studio/reviews')
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
+      .then(d => { if (!d.error) setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
   // Distribution per star (5 → 1)
   const dist = useMemo(() => {
-    if (!data) return [0, 0, 0, 0, 0];
+    if (!data?.reviews) return [0, 0, 0, 0, 0];
     return [5, 4, 3, 2, 1].map(n =>
       data.reviews.filter(r => r.rating === n).length
     );
   }, [data]);
 
   const filtered = useMemo(() => {
-    if (!data) return [];
+    if (!data?.reviews) return [];
     if (filter === 0) return data.reviews;
     return data.reviews.filter(r => r.rating === filter);
   }, [data, filter]);
