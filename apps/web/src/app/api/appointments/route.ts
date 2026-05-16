@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
 import { sendConfirmedEmails } from '@/lib/send-emails';
 import { pushNewBooking } from '@/lib/send-push';
@@ -36,7 +36,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const input = parsed.data;
-  const supabase = createClient();
+  const supabase = createClient();          // anon — pour auth user
+  const adminDb = createServiceClient();    // service role — pour inserts publics
 
   // ── Fetch service ──────────────────────────────────────────────────────
   const { data: service } = await supabase
@@ -79,8 +80,8 @@ export async function POST(req: Request) {
   // ── Auth (optional — guests can book) ─────────────────────────────────
   const { data: { user } } = await supabase.auth.getUser();
 
-  // ── Create appointment ─────────────────────────────────────────────────
-  const { data: appt, error } = await supabase
+  // ── Create appointment (service role — bypass RLS for public booking) ──
+  const { data: appt, error } = await adminDb
     .from('appointments')
     .insert({
       barber_id:      input.barber_id,
@@ -164,7 +165,7 @@ export async function POST(req: Request) {
 
   if (input.recurring_weeks && input.recurring_count && input.recurring_count >= 2) {
     // 1. Create the recurring_series record
-    const { data: series, error: seriesErr } = await supabase
+    const { data: series, error: seriesErr } = await adminDb
       .from('recurring_series')
       .insert({
         barber_id:       input.barber_id,
@@ -183,7 +184,7 @@ export async function POST(req: Request) {
       const durationMs = service.duration_minutes * 60_000;
 
       // 2. Attach series_id to the first appointment
-      await supabase
+      await adminDb
         .from('appointments')
         .update({ recurring_series_id: seriesId })
         .eq('id', appt.id);
@@ -213,7 +214,7 @@ export async function POST(req: Request) {
       }
 
       if (futureAppts.length > 0) {
-        const { data: inserted } = await supabase
+        const { data: inserted } = await adminDb
           .from('appointments')
           .insert(futureAppts)
           .select('id');
