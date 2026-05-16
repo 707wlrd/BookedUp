@@ -58,6 +58,7 @@ export default function RootLayout() {
         <Stack.Screen name="barber/[id]"      options={{ title: '', headerBackTitle: 'Retour' }} />
         <Stack.Screen name="book/[barberId]"  options={{ title: 'Réserver', headerBackTitle: 'Retour' }} />
         <Stack.Screen name="booking/success"  options={{ headerShown: false }} />
+        <Stack.Screen name="profile/edit"     options={{ title: 'Mon profil', headerBackTitle: 'Profil' }} />
       </Stack>
     </SafeAreaProvider>
   );

@@ -1,53 +1,44 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  StyleSheet, Text, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { colors, radius, spacing } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
+type User = { name: string; email: string; initials: string };
+
+function getInitials(name: string, email: string) {
+  if (name) {
+    const parts = name.trim().split(' ');
+    return parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : parts[0].slice(0, 2).toUpperCase();
+  }
+  return email.slice(0, 2).toUpperCase();
+}
+
 export default function ProfileScreen() {
-  const [name, setName]       = useState('');
-  const [email, setEmail]     = useState('');
-  const [phone, setPhone]     = useState('');
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving]   = useState(false);
+  const router = useRouter();
+  const [user, setUser]     = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setEmail(user.email ?? '');
-      setName(user.user_metadata?.full_name ?? '');
-      setPhone(user.user_metadata?.phone ?? '');
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      if (u) {
+        const name = u.user_metadata?.full_name ?? '';
+        setUser({ name, email: u.email ?? '', initials: getInitials(name, u.email ?? '') });
+      }
       setLoading(false);
-    }
-    load();
+    });
   }, []);
 
-  async function saveProfile() {
-    setSaving(true);
-    const { error } = await supabase.auth.updateUser({
-      data: { full_name: name.trim(), phone: phone.trim() },
-    });
-    setSaving(false);
-    if (error) {
-      Alert.alert('Erreur', error.message);
-    } else {
-      setEditing(false);
-    }
-  }
-
-  async function signOut() {
+  function signOut() {
     Alert.alert('Déconnexion', 'Tu vas être déconnecté.', [
       { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Déconnexion',
-        style: 'destructive',
-        onPress: () => supabase.auth.signOut(),
-      },
+      { text: 'Se déconnecter', style: 'destructive', onPress: () => supabase.auth.signOut() },
     ]);
   }
 
@@ -60,121 +51,139 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={s.scroll} contentContainerStyle={s.content}>
+    <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+
       {/* Avatar */}
-      <View style={s.avatarWrap}>
-        <View style={s.avatar}>
-          <Text style={s.avatarText}>
-            {name ? name.charAt(0).toUpperCase() : email.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <Text style={s.nameLabel}>{name || 'Mon compte'}</Text>
-        <Text style={s.emailLabel}>{email}</Text>
-      </View>
-
-      {/* Profile card */}
-      <View style={s.card}>
-        <View style={s.cardHeader}>
-          <Text style={s.cardTitle}>Informations personnelles</Text>
-          {!editing && (
-            <Pressable onPress={() => setEditing(true)} style={s.editBtn}>
-              <Ionicons name="pencil-outline" size={14} color={colors.electric} />
-              <Text style={s.editBtnText}>Modifier</Text>
-            </Pressable>
-          )}
-        </View>
-
-        <View style={s.field}>
-          <Text style={s.label}>Prénom</Text>
-          {editing ? (
-            <TextInput
-              style={s.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Ton prénom"
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="words"
-            />
-          ) : (
-            <Text style={s.value}>{name || '—'}</Text>
-          )}
-        </View>
-
-        <View style={s.field}>
-          <Text style={s.label}>Email</Text>
-          <Text style={s.value}>{email}</Text>
-        </View>
-
-        <View style={s.field}>
-          <Text style={s.label}>Téléphone</Text>
-          {editing ? (
-            <TextInput
-              style={s.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="+33 6 12 34 56 78"
-              placeholderTextColor={colors.textFaint}
-              keyboardType="phone-pad"
-            />
-          ) : (
-            <Text style={s.value}>{phone || '—'}</Text>
-          )}
-        </View>
-
-        {editing && (
-          <View style={s.editActions}>
-            <Pressable onPress={() => setEditing(false)} style={s.cancelBtn}>
-              <Text style={s.cancelText}>Annuler</Text>
-            </Pressable>
-            <Pressable onPress={saveProfile} disabled={saving} style={s.saveBtn}>
-              {saving
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={s.saveBtnText}>Enregistrer</Text>
-              }
-            </Pressable>
+      {user && (
+        <View style={s.avatarSection}>
+          <View style={s.avatar}>
+            <Text style={s.avatarText}>{user.initials}</Text>
           </View>
-        )}
+          <Text style={s.userName}>{user.name || 'Mon compte'}</Text>
+          <Text style={s.userEmail}>{user.email}</Text>
+        </View>
+      )}
+
+      {/* Votre activité */}
+      <Text style={s.sectionTitle}>Votre activité</Text>
+      <View style={s.section}>
+        <MenuItem
+          icon="star-outline"
+          label="Mes avis"
+          onPress={() => Alert.alert('Bientôt disponible')}
+        />
+        <MenuItem
+          icon="heart-outline"
+          label="Mes favoris"
+          onPress={() => router.push('/(tabs)/favorites')}
+          showDivider={false}
+        />
       </View>
 
-      {/* Actions */}
-      <View style={s.card}>
-        <Pressable onPress={signOut} style={s.actionRow}>
-          <Ionicons name="log-out-outline" size={18} color={colors.danger} />
-          <Text style={[s.actionText, { color: colors.danger }]}>Déconnexion</Text>
-        </Pressable>
+      {/* Paramètres du compte */}
+      <Text style={s.sectionTitle}>Paramètres du compte</Text>
+      <View style={s.section}>
+        <MenuItem
+          icon="person-outline"
+          label="Informations de profil"
+          onPress={() => router.push('/profile/edit')}
+        />
+        <MenuItem
+          icon="notifications-outline"
+          label="Notifications"
+          onPress={() => Alert.alert('Bientôt disponible')}
+        />
+        <MenuItem
+          icon="globe-outline"
+          label="Langue (FR)"
+          onPress={() => Alert.alert('Bientôt disponible')}
+          showDivider={false}
+        />
       </View>
+
+      {/* Légal */}
+      <Text style={s.sectionTitle}>Légal</Text>
+      <View style={s.section}>
+        <MenuItem
+          icon="document-text-outline"
+          label="Conditions d'utilisation"
+          onPress={() => Alert.alert('Bientôt disponible')}
+        />
+        <MenuItem
+          icon="shield-outline"
+          label="Politique de confidentialité"
+          onPress={() => Alert.alert('Bientôt disponible')}
+          showDivider={false}
+        />
+      </View>
+
+      {/* Aide */}
+      <View style={s.section}>
+        <MenuItem
+          icon="information-circle-outline"
+          label="Aide"
+          value="v0.1.0"
+          onPress={() => Alert.alert('BookedUp', 'Version 0.1.0\nContact : hello@bookedup.app')}
+          showDivider={false}
+        />
+      </View>
+
+      {/* Déconnexion */}
+      <Pressable onPress={signOut} style={s.signOutRow}>
+        <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+        <Text style={s.signOutText}>Se déconnecter</Text>
+      </Pressable>
+
+      <View style={{ height: 40 }} />
     </ScrollView>
+  );
+}
+
+function MenuItem({
+  icon, label, value, onPress, showDivider = true,
+}: {
+  icon: any; label: string; value?: string;
+  onPress: () => void; showDivider?: boolean;
+}) {
+  return (
+    <>
+      <Pressable onPress={onPress} style={s.menuItem}>
+        <View style={s.menuIcon}>
+          <Ionicons name={icon} size={18} color={colors.electric} />
+        </View>
+        <Text style={s.menuLabel}>{label}</Text>
+        <View style={s.menuRight}>
+          {value ? <Text style={s.menuValue}>{value}</Text> : null}
+          <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+        </View>
+      </Pressable>
+      {showDivider && <View style={s.menuDivider} />}
+    </>
   );
 }
 
 const s = StyleSheet.create({
   scroll:   { flex: 1, backgroundColor: colors.bg },
-  content:  { padding: spacing.md, paddingBottom: 80, gap: spacing.md },
+  content:  { padding: spacing.md, paddingBottom: 80 },
   centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 
-  avatarWrap: { alignItems: 'center', paddingVertical: spacing.lg },
-  avatar:     { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.electricDim, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  avatarText: { color: colors.electric, fontSize: 28, fontWeight: '700' },
-  nameLabel:  { color: colors.text, fontSize: 20, fontWeight: '700' },
-  emailLabel: { color: colors.textFaint, fontSize: 13, marginTop: 4 },
+  avatarSection: { alignItems: 'center', paddingVertical: spacing.xl },
+  avatar:     { width: 76, height: 76, borderRadius: 38, backgroundColor: colors.electricDim, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, borderWidth: 2, borderColor: 'rgba(124,58,237,0.4)' },
+  avatarText: { color: colors.electric, fontSize: 26, fontWeight: '800' },
+  userName:   { color: colors.text, fontSize: 20, fontWeight: '700' },
+  userEmail:  { color: colors.textFaint, fontSize: 13, marginTop: 4 },
 
-  card:       { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
-  cardTitle:  { color: colors.text, fontWeight: '600', fontSize: 15 },
-  editBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)' },
-  editBtnText: { color: colors.electric, fontSize: 12, fontWeight: '500' },
+  sectionTitle: { color: colors.textFaint, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm, marginTop: spacing.md, paddingHorizontal: 4 },
 
-  field:  { marginBottom: spacing.md },
-  label:  { color: colors.textFaint, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  value:  { color: colors.text, fontSize: 15 },
-  input:  { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.text, fontSize: 15 },
+  section: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm, overflow: 'hidden' },
 
-  editActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  cancelBtn:   { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: radius.full, borderWidth: 1, borderColor: colors.border },
-  cancelText:  { color: colors.textDim, fontWeight: '600' },
-  saveBtn:     { flex: 2, paddingVertical: 12, alignItems: 'center', borderRadius: radius.full, backgroundColor: colors.electric },
-  saveBtnText: { color: '#fff', fontWeight: '700' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 15, gap: spacing.md },
+  menuIcon: { width: 32, height: 32, borderRadius: radius.sm, backgroundColor: colors.electricDim, alignItems: 'center', justifyContent: 'center' },
+  menuLabel: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '500' },
+  menuRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  menuValue: { color: colors.textFaint, fontSize: 13 },
+  menuDivider: { height: 1, backgroundColor: colors.border, marginLeft: 64 },
 
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
-  actionText: { fontSize: 15, fontWeight: '500' },
+  signOutRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)', padding: spacing.md, marginTop: spacing.sm },
+  signOutText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
 });
