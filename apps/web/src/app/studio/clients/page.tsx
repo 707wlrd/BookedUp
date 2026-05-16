@@ -1,42 +1,18 @@
+export const dynamic = 'force-dynamic';
+
 import { Mail, Phone, Calendar } from 'lucide-react';
 import { PageHeader } from '@/components/studio/StatCard';
-import { formatPrice } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/server';
+import { formatPrice, cn } from '@/lib/utils';
+import { redirect } from 'next/navigation';
 
-const CLIENTS = [
-  { name: 'Karim Larbi',   email: 'karim@mail.fr',  phone: '06 12 34 56 78', visits: 14, ltv: 49000, last: '2026-05-10' },
-  { name: 'Yanis Rouhani', email: 'yanis@mail.fr',  phone: '06 22 33 44 55', visits: 8,  ltv: 22000, last: '2026-05-09' },
-  { name: 'Hugo Marais',   email: 'hugo@mail.fr',   phone: '06 88 77 66 55', visits: 22, ltv: 77000, last: '2026-05-12' },
-  { name: 'Léo Martin',    email: 'leo@mail.fr',    phone: '06 99 88 77 66', visits: 3,  ltv: 9000,  last: '2026-04-20' },
-];
-
-export default function ClientsPage() {
-  return (
-    <>
-      <PageHeader title="Clients" subtitle={`${CLIENTS.length} clients enregistrés`} actions={<input className="input max-w-xs" placeholder="Rechercher…" />} />
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {CLIENTS.map((c) => (
-          <div key={c.email} className="card p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="font-medium">{c.name}</div>
-                <div className="mt-1 flex items-center gap-3 text-xs text-white/45">
-                  <a href={`mailto:${c.email}`} className="flex items-center gap-1 hover:text-white"><Mail className="h-3 w-3" />{c.email}</a>
-                  <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{c.phone}</span>
-                </div>
-              </div>
-              <button className="btn-ghost text-xs"><Calendar className="h-3 w-3" />Nouveau RDV</button>
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/5 pt-4 text-xs">
-              <Stat label="Visites" value={String(c.visits)} />
-              <Stat label="LTV"     value={formatPrice(c.ltv)} />
-              <Stat label="Dernier" value={new Date(c.last).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
-  );
+interface ClientRow {
+  name: string;
+  email: string;
+  phone: string | null;
+  visits: number;
+  ltv: number;          // total price_cents
+  last: string;         // ISO date of last appointment
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -45,5 +21,106 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="label">{label}</div>
       <div className="mt-1 text-base font-semibold">{value}</div>
     </div>
+  );
+}
+
+export default async function ClientsPage() {
+  const supabase = createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login?next=/studio/clients');
+
+  /* Get barber */
+  const { data: barber } = await supabase
+    .from('barbers')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single();
+
+  if (!barber) return <p className="p-8 text-white/40">Profil coiffeur introuvable.</p>;
+
+  /* Fetch all appointments for this barber */
+  const { data: appts } = await supabase
+    .from('appointments')
+    .select('customer_name, customer_email, customer_phone, price_cents, starts_at')
+    .eq('barber_id', barber.id)
+    .neq('status', 'cancelled')
+    .order('starts_at', { ascending: false });
+
+  /* Aggregate by email */
+  const map = new Map<string, ClientRow>();
+  for (const a of appts ?? []) {
+    const key = a.customer_email?.toLowerCase() ?? '';
+    if (!key) continue;
+    const existing = map.get(key);
+    if (existing) {
+      existing.visits += 1;
+      existing.ltv    += a.price_cents ?? 0;
+      // last is already the most recent (ordered desc)
+    } else {
+      map.set(key, {
+        name:   a.customer_name ?? key,
+        email:  a.customer_email,
+        phone:  a.customer_phone ?? null,
+        visits: 1,
+        ltv:    a.price_cents ?? 0,
+        last:   a.starts_at,
+      });
+    }
+  }
+
+  const clients = Array.from(map.values()).sort((a, b) => b.visits - a.visits);
+
+  return (
+    <>
+      <PageHeader
+        title="Clients"
+        subtitle={`${clients.length} client${clients.length > 1 ? 's' : ''} enregistré${clients.length > 1 ? 's' : ''}`}
+      />
+
+      {clients.length === 0 ? (
+        <div className="card flex flex-col items-center justify-center py-20 text-center">
+          <div className="mb-3 text-white/15 text-5xl">👤</div>
+          <p className="text-sm font-medium text-white/50">Aucun client pour l'instant.</p>
+          <p className="mt-1 text-xs text-white/30">Les clients apparaîtront ici après leur premier RDV.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {clients.map((c) => (
+            <div key={c.email} className="card p-5">
+              <div className="flex items-start justify-between">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{c.name}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/45">
+                    <a href={`mailto:${c.email}`} className="flex items-center gap-1 hover:text-white truncate">
+                      <Mail className="h-3 w-3 flex-none" />{c.email}
+                    </a>
+                    {c.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3 flex-none" />{c.phone}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={`/studio/appointments`}
+                  className="ml-3 flex-none inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-white/60 transition hover:bg-white/[0.08] hover:text-white"
+                >
+                  <Calendar className="h-3 w-3" />Nouveau RDV
+                </a>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/5 pt-4 text-xs">
+                <Stat label="Visites" value={String(c.visits)} />
+                <Stat label="Total"   value={formatPrice(c.ltv)} />
+                <Stat
+                  label="Dernier"
+                  value={new Date(c.last).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

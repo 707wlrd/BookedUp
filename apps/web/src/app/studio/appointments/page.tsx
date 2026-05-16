@@ -25,6 +25,7 @@ interface Appt {
   payment_status: string;
   recurring_series_id: string | null;
   services: { name: string; duration_minutes: number } | null;
+  stylists: { name: string } | null;
 }
 
 /* ── Status config ── */
@@ -247,6 +248,11 @@ export default function AppointmentsPage() {
                         <td className="px-5 py-3.5 text-white/60">
                           <div className="flex flex-col gap-1">
                             <span>{a.services?.name ?? '—'}</span>
+                            {a.stylists?.name && (
+                              <span className="flex items-center gap-1 text-[11px] text-white/35">
+                                <User className="h-2.5 w-2.5" /> {a.stylists.name}
+                              </span>
+                            )}
                             {a.recurring_series_id && (
                               <span className="inline-flex items-center gap-1 rounded-full border border-electric-500/20 bg-electric-500/[0.06] px-2 py-0.5 text-[10px] text-electric-300 w-fit">
                                 <RefreshCw className="h-2.5 w-2.5" /> Récurrent
