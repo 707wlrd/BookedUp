@@ -104,6 +104,21 @@ export default function AgendaScreen() {
     if (barberId) loadAppts(selected);
   }, [selected, barberId]);
 
+  // ── Realtime : rafraîchit l'agenda dès qu'un RDV est créé/modifié/annulé ──
+  useEffect(() => {
+    if (!barberId) return;
+    const channel = supabase
+      .channel(`appointments:${barberId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+        filter: `barber_id=eq.${barberId}`,
+      }, () => { loadAppts(selected); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [barberId, selected]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadAppts(selected);

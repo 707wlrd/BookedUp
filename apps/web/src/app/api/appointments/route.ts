@@ -81,6 +81,31 @@ export async function POST(req: Request) {
   // ── Auth (optional — guests can book) ─────────────────────────────────
   const { data: { user } } = await supabase.auth.getUser();
 
+  // ── Conflict check — prevent double bookings ──────────────────────────
+  // Check for any non-cancelled appointment that overlaps the requested slot
+  // Overlap condition: existing.starts_at < new.ends_at AND existing.ends_at > new.starts_at
+  const conflictQuery = adminDb
+    .from('appointments')
+    .select('id', { count: 'exact', head: true })
+    .eq('barber_id', input.barber_id)
+    .not('status', 'in', '("cancelled","no_show")')
+    .lt('starts_at', input.ends_at)
+    .gt('ends_at', input.starts_at);
+
+  // If a specific stylist is requested, only check that stylist's calendar
+  if (input.stylist_id) {
+    conflictQuery.eq('stylist_id', input.stylist_id);
+  }
+
+  const { count: conflictCount } = await conflictQuery;
+
+  if (conflictCount && conflictCount > 0) {
+    return NextResponse.json(
+      { error: 'Ce créneau vient d\'être réservé. Choisis un autre horaire.' },
+      { status: 409 }
+    );
+  }
+
   // ── Create appointment (service role — bypass RLS for public booking) ──
   const { data: appt, error } = await adminDb
     .from('appointments')

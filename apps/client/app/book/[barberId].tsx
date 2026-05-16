@@ -197,7 +197,9 @@ export default function BookScreen() {
     setBusySlots([]);
     fetch(`${API}/api/availability?barber_id=${barberId}&date=${date}&duration=${selectedService.duration_minutes}`)
       .then(r => r.json())
-      .then(d => setBusySlots(d.booked ?? []))
+      .then(d => setBusySlots(
+        (d.slots ?? []).filter((s: { time: string; available: boolean }) => !s.available).map((s: { time: string }) => s.time)
+      ))
       .catch(() => {})
       .finally(() => setSlotsLoading(false));
   }, [date, selectedService, barberId]);

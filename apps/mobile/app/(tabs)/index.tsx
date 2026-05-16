@@ -90,6 +90,20 @@ export default function HomeScreen() {
   useEffect(() => {
     registerForPushAsync().catch(() => {});
     load().finally(() => setLoading(false));
+
+    // Realtime : rafraîchit le dashboard dès qu'un RDV du jour change
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from('barbers').select('id').eq('owner_id', user.id).single().then(({ data: barber }) => {
+        if (!barber) return;
+        channel = supabase
+          .channel(`home:${barber.id}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments', filter: `barber_id=eq.${barber.id}` }, () => load())
+          .subscribe();
+      });
+    });
+    return () => { if (channel) supabase.removeChannel(channel); };
   }, [load]);
 
   const onRefresh = useCallback(async () => {
