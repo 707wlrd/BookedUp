@@ -70,7 +70,7 @@ export default async function PaymentsPage() {
 
   const month     = monthAppts ?? [];
   const prevMonth = prevMonthAppts ?? [];
-  const txns      = (transactions ?? []) as Appt[];
+  const txns      = (transactions ?? []) as unknown as Appt[];
 
   // ── Computed stats ──────────────────────────────────────────────────────────
   const monthRevenue  = month.reduce((s, a) => s + a.price_cents, 0);
