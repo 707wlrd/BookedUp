@@ -10,17 +10,17 @@ import { UserMenu } from '@/components/studio/UserMenu';
 import { cn } from '@/lib/utils';
 
 const ITEMS = [
-  { href: '/studio',              label: 'Overview',     Icon: LayoutDashboard },
-  { href: '/studio/calendar',     label: 'Calendar',     Icon: CalIcon },
-  { href: '/studio/appointments', label: 'Appointments', Icon: CalendarDays },
-  { href: '/studio/clients',      label: 'Clients',      Icon: Users },
-  { href: '/studio/services',     label: 'Services',     Icon: Scissors },
-  { href: '/studio/stylists',     label: 'Coiffeurs',    Icon: UserRound },
-  { href: '/studio/payments',     label: 'Payments',     Icon: CreditCard },
-  { href: '/studio/analytics',    label: 'Analytics',    Icon: BarChart3 },
-  { href: '/studio/reviews',      label: 'Avis clients', Icon: Star },
-  { href: '/studio/ai',           label: 'AI Studio',    Icon: Sparkles, badge: 'New' },
-  { href: '/studio/settings',     label: 'Settings',     Icon: Settings },
+  { href: '/studio',              label: 'Aperçu',         Icon: LayoutDashboard },
+  { href: '/studio/calendar',     label: 'Calendrier',     Icon: CalIcon },
+  { href: '/studio/appointments', label: 'Rendez-vous',    Icon: CalendarDays },
+  { href: '/studio/clients',      label: 'Clients',        Icon: Users },
+  { href: '/studio/services',     label: 'Services',       Icon: Scissors },
+  { href: '/studio/stylists',     label: 'Coiffeurs',      Icon: UserRound },
+  { href: '/studio/payments',     label: 'Paiements',      Icon: CreditCard },
+  { href: '/studio/analytics',    label: 'Statistiques',   Icon: BarChart3 },
+  { href: '/studio/reviews',      label: 'Avis clients',   Icon: Star },
+  { href: '/studio/ai',           label: 'AI Studio',      Icon: Sparkles, badge: 'New' },
+  { href: '/studio/settings',     label: 'Paramètres',     Icon: Settings },
 ];
 
 interface Props {
