@@ -10,6 +10,7 @@ import {
   savePushToken,
   clearPushToken,
 } from '@/lib/notifications';
+import { SplashOverlay } from '@/components/SplashOverlay';
 import type { Session } from '@supabase/supabase-js';
 
 // ── Auth guard ─────────────────────────────────────────────────────────────────
@@ -31,7 +32,8 @@ function useAuthGuard(session: Session | null | undefined) {
 // ── Root layout ────────────────────────────────────────────────────────────────
 export default function RootLayout() {
   const router = useRouter();
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [session,     setSession]     = useState<Session | null | undefined>(undefined);
+  const [showSplash,  setShowSplash]  = useState(true);
   const notifListener    = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
@@ -87,17 +89,10 @@ export default function RootLayout() {
 
   useAuthGuard(session);
 
-  if (session === undefined) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#05060a', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#3b82ff" size="large" />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
+      {showSplash && <SplashOverlay variant="pro" onDone={() => setShowSplash(false)} />}
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: '#05060a' },

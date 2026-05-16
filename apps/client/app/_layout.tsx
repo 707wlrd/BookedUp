@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
 import { supabase } from '@/lib/supabase';
+import { SplashOverlay } from '@/components/SplashOverlay';
 import type { Session } from '@supabase/supabase-js';
 
 function useAuthGuard(session: Session | null | undefined) {
@@ -22,7 +23,8 @@ function useAuthGuard(session: Session | null | undefined) {
 }
 
 export default function RootLayout() {
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [session,    setSession]    = useState<Session | null | undefined>(undefined);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -34,17 +36,10 @@ export default function RootLayout() {
 
   useAuthGuard(session);
 
-  if (session === undefined) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#05060a', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#7c3aed" size="large" />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
+      {showSplash && <SplashOverlay onDone={() => setShowSplash(false)} />}
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: '#05060a' },
