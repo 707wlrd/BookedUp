@@ -161,7 +161,7 @@ export default function SettingsPage() {
       const { data } = await supabase
         .from('barbers')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('owner_id', user.id)
         .single();
 
       if (data) {
@@ -250,9 +250,10 @@ export default function SettingsPage() {
         avatar_url: avatarUrl,
         cover_url: coverUrl,
       })
-      .eq('user_id', userId);
+      .eq('owner_id', userId);
 
     if (error) {
+      console.error('[settings/salon]', error);
       setSalonSave('error');
     } else {
       setSalonSave('saved');
@@ -269,7 +270,7 @@ export default function SettingsPage() {
     const { error } = await supabase
       .from('barbers')
       .update({ opening_hours: hours })
-      .eq('user_id', userId);
+      .eq('owner_id', userId);
 
     if (error) {
       setHoursSave('error');
@@ -293,7 +294,7 @@ export default function SettingsPage() {
         deposit_required: depositEnabled,
         deposit_amount_cents: depositEnabled ? amountCents : 0,
       })
-      .eq('user_id', userId);
+      .eq('owner_id', userId);
 
     if (error) {
       setPaymentsSave('error');

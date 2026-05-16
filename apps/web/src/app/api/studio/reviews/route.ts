@@ -18,7 +18,7 @@ export async function GET() {
   const { data: barber } = await supabase
     .from('barbers')
     .select('id, rating_average, rating_count')
-    .eq('user_id', user.id)
+    .eq('owner_id', user.id)
     .single();
 
   if (!barber) return NextResponse.json({ error: 'barber_not_found' }, { status: 404 });
