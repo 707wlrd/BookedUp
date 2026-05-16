@@ -28,8 +28,14 @@ export async function registerForPushNotifications(): Promise<string | null> {
     });
   }
 
-  const token = await Notifications.getExpoPushTokenAsync();
-  return token.data;
+  // projectId is required in SDK 53+ — get from EAS config or skip gracefully
+  try {
+    const token = await Notifications.getExpoPushTokenAsync();
+    return token.data;
+  } catch {
+    // In Expo Go without EAS projectId configured, push tokens are unavailable
+    return null;
+  }
 }
 
 /** Alias kept for backward-compat with any screen that uses the old name */
