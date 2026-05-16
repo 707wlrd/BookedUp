@@ -22,11 +22,11 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
   const stylists = barber.stylists ?? [];
   const hasStylists = stylists.length > 0;
 
-  // Build dynamic step list
+  // Build dynamic step list — new order: Service → Date & heure → Coiffeur → Tes infos → Paiement
   const STEPS = useMemo(
     () =>
       hasStylists
-        ? (['Service', 'Coiffeur', 'Date & heure', 'Tes infos', 'Paiement'] as const)
+        ? (['Service', 'Date & heure', 'Coiffeur', 'Tes infos', 'Paiement'] as const)
         : (['Service', 'Date & heure', 'Tes infos', 'Paiement'] as const),
     [hasStylists],
   );
@@ -34,8 +34,8 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
   // Named step indices — avoids magic numbers everywhere
   const si = useMemo(() => ({
     service:  0,
-    stylist:  hasStylists ? 1 : -1,
-    datetime: hasStylists ? 2 : 1,
+    datetime: 1,
+    stylist:  hasStylists ? 2 : -1,
     info:     hasStylists ? 3 : 2,
     payment:  hasStylists ? 4 : 3,
     done:     STEPS.length,
@@ -62,6 +62,7 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
   // Availability
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [availableStylistIds, setAvailableStylistIds] = useState<string[]>([]);
 
   const service = useMemo(
     () => barber.services.find((s) => s.id === serviceId),
@@ -72,10 +73,11 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
     [stylistId, stylists],
   );
 
-  // ── Fetch slots whenever date/stylist/service changes ───────────────────
+  // ── Fetch slots whenever date/service changes (step datetime) ───────────
+  // Multi-stylist mode: pass stylist_count so a slot is free if at least one stylist is free.
+  // If a specific stylist is already selected (shouldn't happen normally in new flow), filter by that stylist.
   useEffect(() => {
     if (!date || !service) { setSlots([]); return; }
-    if (hasStylists && !stylistId) { setSlots([]); return; }
 
     setSlotsLoading(true);
     setTime(null); // reset time on any change
@@ -84,20 +86,49 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
       barber_id: barber.id,
       date,
       duration: String(service.duration_minutes),
-      ...(stylistId ? { stylist_id: stylistId } : {}),
     });
+
+    if (stylistId) {
+      params.set('stylist_id', stylistId);
+    } else if (hasStylists) {
+      params.set('stylist_count', String(stylists.length));
+    }
 
     fetch(`/api/availability?${params}`)
       .then(r => r.json())
       .then(d => { setSlots(d.slots ?? []); setSlotsLoading(false); })
       .catch(() => setSlotsLoading(false));
-  }, [date, stylistId, service?.duration_minutes, barber.id, hasStylists]);
+  }, [date, stylistId, service?.duration_minutes, barber.id, hasStylists, stylists.length]);
+
+  // ── Fetch available stylists when date+time are set (step stylist) ───────
+  useEffect(() => {
+    if (!hasStylists || !date || !time || !service) {
+      setAvailableStylistIds([]);
+      return;
+    }
+    const params = new URLSearchParams({
+      barber_id: barber.id,
+      date,
+      time,
+      duration: String(service.duration_minutes),
+      stylist_ids: stylists.map(s => s.id).join(','),
+    });
+    fetch(`/api/available-stylists?${params}`)
+      .then(r => r.json())
+      .then(d => {
+        const available: string[] = d.available ?? [];
+        setAvailableStylistIds(available);
+        // Auto-select if only one stylist available
+        if (available.length === 1) setStylistId(available[0]);
+      })
+      .catch(() => setAvailableStylistIds([]));
+  }, [date, time, service?.duration_minutes, barber.id, hasStylists, stylists]);
 
   // ── canNext ──────────────────────────────────────────────────────────────
   const canNext =
     (step === si.service && !!serviceId) ||
-    (hasStylists && step === si.stylist && !!stylistId) ||
     (step === si.datetime && !!date && !!time) ||
+    (hasStylists && step === si.stylist && !!stylistId) ||
     (step === si.info && name.length > 1 && /.+@.+\..+/.test(email));
 
   // ── Confirm ──────────────────────────────────────────────────────────────
@@ -224,11 +255,6 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
               </div>
             )}
 
-            {/* Step: Coiffeur (only if stylists exist) */}
-            {hasStylists && step === si.stylist && (
-              <StylistPicker stylists={stylists} selected={stylistId} onSelect={setStylistId} />
-            )}
-
             {/* Step: Date & heure */}
             {step === si.datetime && (
               <DateTimePicker
@@ -238,7 +264,17 @@ export function BookingFlow({ barber, initialServiceId }: { barber: B; initialSe
                 setTime={setTime}
                 slots={slots}
                 slotsLoading={slotsLoading}
-                needsStylist={hasStylists && !stylistId}
+                needsStylist={false}
+              />
+            )}
+
+            {/* Step: Coiffeur (only if stylists exist) — after date+time */}
+            {hasStylists && step === si.stylist && (
+              <StylistPicker
+                stylists={stylists}
+                selected={stylistId}
+                onSelect={setStylistId}
+                availableIds={availableStylistIds}
               />
             )}
 
@@ -440,27 +476,39 @@ function StylistPicker({
   stylists,
   selected,
   onSelect,
+  availableIds,
 }: {
   stylists: Stylist[];
   selected: string | null;
   onSelect: (id: string) => void;
+  /** IDs of stylists free at the chosen slot. Empty array = not yet fetched (show all). */
+  availableIds?: string[];
 }) {
+  // If availableIds is provided and non-empty, use it to filter; otherwise show all as available
+  const hasFilter = availableIds !== undefined && availableIds.length >= 0;
+
   return (
     <div className="space-y-2">
       <p className="mb-4 text-sm text-white/50">
-        Choisis ton coiffeur. Les disponibilités s'adaptent automatiquement.
+        Choisis ton coiffeur parmi ceux disponibles à ce créneau.
       </p>
       {stylists.map((s) => {
         const isSel = selected === s.id;
+        // When availableIds has been fetched (array exists), check availability
+        const isAvailable = !availableIds || availableIds.length === 0 || availableIds.includes(s.id);
         return (
           <button
             key={s.id}
-            onClick={() => onSelect(s.id)}
+            onClick={() => isAvailable && onSelect(s.id)}
+            disabled={!isAvailable}
             className={cn(
               'flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-all duration-150',
-              isSel
+              !isAvailable && 'cursor-not-allowed opacity-40',
+              isAvailable && isSel
                 ? 'border-electric-500/50 bg-electric-500/[0.08] shadow-glow'
-                : 'border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]',
+                : isAvailable
+                ? 'border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
+                : 'border-white/[0.06] bg-white/[0.01]',
             )}
           >
             {/* Avatar */}
@@ -481,8 +529,11 @@ function StylistPicker({
             {/* Info */}
             <div className="min-w-0 flex-1">
               <div className="font-semibold">{s.name}</div>
-              {s.bio && <div className="mt-0.5 truncate text-xs text-white/45">{s.bio}</div>}
-              {s.specialties && s.specialties.length > 0 && (
+              {!isAvailable && (
+                <div className="mt-0.5 text-xs text-white/35">Non disponible à ce créneau</div>
+              )}
+              {isAvailable && s.bio && <div className="mt-0.5 truncate text-xs text-white/45">{s.bio}</div>}
+              {isAvailable && s.specialties && s.specialties.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {s.specialties.map((sp) => (
                     <span
