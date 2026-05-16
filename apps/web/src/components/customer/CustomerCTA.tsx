@@ -16,18 +16,18 @@ export function CustomerCTA() {
             <span className="gradient-text">Prêt à réserver ?</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-white/60">
-            Plus de 200 barbers, partout en France. Ton prochain fresh cut est à 30 secondes d'ici.
+            Plus de 200 coiffeurs, partout en France. Ton prochain fresh cut est à 30 secondes d'ici.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button href="/barbers" size="lg">
-              Trouver un barber <ArrowRight className="h-4 w-4" />
+              Trouver un coiffeur <ArrowRight className="h-4 w-4" />
             </Button>
             <Link
               href="/pro"
               className="inline-flex items-center gap-2 text-sm text-white/55 transition hover:text-white"
             >
               <Briefcase className="h-3.5 w-3.5" />
-              Je suis barber — découvrir BookedUp Pro
+              Je suis coiffeur — découvrir BookedUp Pro
             </Link>
           </div>
         </div>

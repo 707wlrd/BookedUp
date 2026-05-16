@@ -18,11 +18,11 @@ export const metadata: Metadata = {
     template: '%s | BookedUp',
   },
   description:
-    'Trouve ton barber et réserve en 30 secondes. Acomptes Stripe, confirmations instantanées, fini les coups de fil.',
+    'Trouve ton coiffeur et réserve en 30 secondes. Acomptes Stripe, confirmations instantanées, fini les coups de fil.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
   openGraph: {
     title:       'BookedUp — Stay Booked.',
-    description: 'Trouve ton barber et réserve en 30 secondes.',
+    description: 'Trouve ton coiffeur et réserve en 30 secondes.',
     type:        'website',
     siteName:    'BookedUp',
     locale:      'fr_FR',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   twitter: {
     card:        'summary_large_image',
     title:       'BookedUp — Stay Booked.',
-    description: 'Trouve ton barber et réserve en 30 secondes.',
+    description: 'Trouve ton coiffeur et réserve en 30 secondes.',
     creator:     '@bookedup_fr',
   },
   robots: {

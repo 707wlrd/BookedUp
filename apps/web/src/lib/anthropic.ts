@@ -8,7 +8,7 @@ export const AI_MODEL = 'claude-3-5-haiku-20241022';
 
 // Long-lived system prompts get cached so we pay full token cost only on the first call.
 const SYSTEM_BASE =
-  "Tu écris pour des barbers et coiffeurs sur les réseaux sociaux. " +
+  "Tu écris pour des coiffeurs sur les réseaux sociaux. " +
   "Style: court, percutant, urbain, ton TikTok/Instagram, emojis avec parcimonie. " +
   "Toujours en français sauf indication contraire.";
 

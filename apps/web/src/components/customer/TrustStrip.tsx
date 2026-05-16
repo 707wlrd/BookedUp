@@ -3,7 +3,7 @@
 const ITEMS = [
   { Icon: Zap,     title: 'Réservation 30s',    text: 'Pas de coup de fil, pas d\'attente.' },
   { Icon: Lock,    title: 'Paiement sécurisé',  text: 'Acomptes Stripe, données chiffrées.' },
-  { Icon: Shield,  title: 'Barbers vérifiés',  text: 'Profils, portfolios et avis authentiques.' },
+  { Icon: Shield,  title: 'Coiffeurs vérifiés',  text: 'Profils, portfolios et avis authentiques.' },
   { Icon: RotateCcw, title: 'Annulation gratuite', text: 'Jusqu\'à 24h avant ton RDV.' },
 ];
 

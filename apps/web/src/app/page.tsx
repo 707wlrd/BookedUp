@@ -54,7 +54,7 @@ export default function HomePage() {
             transition={{ duration: 0.55, delay: 0.08 }}
             className="mb-4 max-w-2xl text-5xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-6xl"
           >
-            Trouve ton barber.{' '}
+            Trouve ton coiffeur.{' '}
             <span className="text-electric-400">Réserve en ligne.</span>
           </motion.h1>
 
@@ -64,7 +64,7 @@ export default function HomePage() {
             transition={{ duration: 0.55, delay: 0.16 }}
             className="mb-10 max-w-lg text-base text-white/55 leading-relaxed"
           >
-            Les meilleurs barbers près de toi, disponibles en temps réel.
+            Les meilleurs coiffeurs près de toi, disponibles en temps réel.
             Réserve sans appel, sans WhatsApp.
           </motion.p>
 
@@ -123,7 +123,7 @@ export default function HomePage() {
                   À la une
                 </p>
                 <h2 className="text-3xl font-extrabold tracking-tight text-white">
-                  Barbers populaires
+                  Coiffeurs populaires
                 </h2>
               </div>
               <Link
@@ -138,7 +138,7 @@ export default function HomePage() {
 
             <div className="mt-8 text-center sm:hidden">
               <Link href="/barbers" className="text-sm font-medium text-electric-400">
-                Voir tous les barbers →
+                Voir tous les coiffeurs →
               </Link>
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function HomePage() {
               {[
                 {
                   num: '01',
-                  title: 'Trouve ton barber',
+                  title: 'Trouve ton coiffeur',
                   desc: 'Filtre par ville, spécialité ou note. Consulte les galeries et les avis clients.',
                 },
                 {
@@ -202,7 +202,7 @@ export default function HomePage() {
             className="mx-auto max-w-xl rounded-2xl border border-electric-500/15 bg-electric-500/[0.06] p-10 text-center"
           >
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-electric-400">
-              Tu es barber ?
+              Tu es coiffeur ?
             </p>
             <h2 className="mb-3 text-2xl font-extrabold text-white sm:text-3xl">
               Remplis ton agenda automatiquement
@@ -212,7 +212,7 @@ export default function HomePage() {
               acomptes Stripe, rappels auto — tout en un.
             </p>
             <Button href="/register?role=barber" size="lg">
-              Créer mon espace barber <ArrowRight className="h-4 w-4" />
+              Créer mon espace coiffeur <ArrowRight className="h-4 w-4" />
             </Button>
           </motion.div>
         </section>

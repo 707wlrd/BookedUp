@@ -23,7 +23,7 @@ export function WhyBento() {
                   Les vrais créneaux. <span className="gradient-text">En temps réel.</span>
                 </h3>
                 <p className="mt-3 max-w-md text-sm text-white/55">
-                  Tu vois exactement quand ton barber est dispo. Pas de "rappelle-moi demain". Tu cliques, c'est réservé.
+                  Tu vois exactement quand ton coiffeur est dispo. Pas de "rappelle-moi demain". Tu cliques, c'est réservé.
                 </p>
               </div>
               <SlotPreview />

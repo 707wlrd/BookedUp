@@ -9,19 +9,19 @@ export function Footer() {
         <div className="col-span-2">
           <Logo />
           <p className="mt-3 max-w-xs text-sm text-white/40">
-            Stay Booked. Trouve ton barber et réserve en 30 secondes.
+            Stay Booked. Trouve ton coiffeur et réserve en 30 secondes.
           </p>
           <Link
             href="/pro"
             className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/60 transition hover:border-electric-500/40 hover:text-white"
           >
-            <Briefcase className="h-3.5 w-3.5" /> Pour les barbers
+            <Briefcase className="h-3.5 w-3.5" /> Pour les coiffeurs
           </Link>
         </div>
         <FooterCol
           title="Découvrir"
           links={[
-            ['Tous les barbers', '/barbers'],
+            ['Tous les coiffeurs', '/barbers'],
             ['Paris', '/barbers?q=Paris'],
             ['Lyon', '/barbers?q=Lyon'],
             ['Marseille', '/barbers?q=Marseille'],
@@ -30,7 +30,7 @@ export function Footer() {
         <FooterCol
           title="BookedUp"
           links={[
-            ['Pour les barbers', '/pro'],
+            ['Pour les coiffeurs', '/pro'],
             ['Tarifs Pro', '/pro/pricing'],
             ['Connexion', '/login'],
             ['Contact', 'mailto:hello@bookedup.app'],

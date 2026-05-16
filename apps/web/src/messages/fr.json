@@ -2,13 +2,13 @@
   "nav": {
     "features": "Fonctionnalités",
     "pricing": "Tarifs",
-    "barbers": "Barbers",
+    "barbers": "Coiffeurs",
     "login": "Connexion",
     "cta": "Commencer"
   },
   "hero": {
     "badge": "Stay Booked.",
-    "title": "Le système de réservation que les barbers attendaient.",
+    "title": "Le système de réservation que les coiffeurs attendaient.",
     "subtitle": "BookedUp réduit les no-shows, remplit ton agenda et automatise ta com'. Tout ce dont tu as besoin pour rester booked.",
     "cta_primary": "Démarrer gratuitement",
     "cta_secondary": "Voir une démo"

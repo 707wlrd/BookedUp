@@ -5,7 +5,7 @@ import { Star, Quote } from 'lucide-react';
 const REVIEWS = [
   { name: 'Karim L.',  city: 'Paris',     rating: 5, text: 'Réservé en 30 secondes, fade nickel. Le rappel SMS est top, je l\'ai bien briefé.' },
   { name: 'Yanis R.',  city: 'Lyon',      rating: 5, text: 'Plus besoin d\'appeler 15 fois. Je vois les dispos en live, je choisis, j\'y vais.' },
-  { name: 'Hugo M.',   city: 'Marseille', rating: 5, text: 'Le portfolio des barbers est ouf, tu vois exactement ce que tu vas avoir.' },
+  { name: 'Hugo M.',   city: 'Marseille', rating: 5, text: 'Le portfolio des coiffeurs est ouf, tu vois exactement ce que tu vas avoir.' },
 ];
 
 export function CustomerReviews() {

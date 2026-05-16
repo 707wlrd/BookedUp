@@ -8,7 +8,7 @@ import { CTA } from '@/components/marketing/CTA';
 import { Footer } from '@/components/marketing/Footer';
 
 export const metadata = {
-  title: 'BookedUp Pro — Le système de réservation pour barbers.',
+  title: 'BookedUp Pro — Le système de réservation pour coiffeurs.',
   description:
     "Réduis tes no-shows, remplis ton agenda et automatise ta com'. Tout ce dont tu as besoin pour rester booked.",
 };

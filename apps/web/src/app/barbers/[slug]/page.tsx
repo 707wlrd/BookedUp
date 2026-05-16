@@ -415,7 +415,7 @@ export default async function BarberProfilePage({
               {/* Empty state */}
               {safeServices.length === 0 && (
                 <div className="card p-10 text-center text-white/40 text-sm">
-                  Ce barber n'a pas encore configuré ses services.
+                  Ce coiffeur n'a pas encore configuré ses services.
                 </div>
               )}
 

@@ -38,13 +38,13 @@ export function HeroSearch() {
           </div>
 
           <h1 className="text-display-xl text-balance">
-            <span className="gradient-text">Trouve ton barber.</span>
+            <span className="gradient-text">Trouve ton coiffeur.</span>
             <br />
             <span className="text-white">Réserve en <span className="gradient-spark">30 secondes.</span></span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-xl text-pretty text-base text-white/55 sm:text-lg">
-            Les meilleurs barbers et coiffeurs près de chez toi. Réservation en ligne, paiement sécurisé, confirmation instantanée.
+            Les meilleurs coiffeurs près de chez toi. Réservation en ligne, paiement sécurisé, confirmation instantanée.
           </p>
 
           <motion.form
@@ -100,7 +100,7 @@ export function HeroSearch() {
                   <PreviewStat Icon={Calendar} label="Réservations" value="12k+" hint="ce mois" />
                   <PreviewStat Icon={Star} label="Note moyenne" value="4.9" hint="sur 5" highlight />
                   <PreviewStat Icon={MapPin} label="Villes" value="50+" hint="en France" />
-                  <PreviewStat Icon={BadgeCheck} label="Barbers" value="200+" hint="vérifiés" />
+                  <PreviewStat Icon={BadgeCheck} label="Coiffeurs" value="200+" hint="vérifiés" />
                 </div>
               </div>
             </div>

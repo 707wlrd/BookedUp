@@ -18,14 +18,14 @@ export async function generateMetadata({
   const city = searchParams.city?.trim();
   const q = searchParams.q?.trim();
 
-  const titleParts = ['Trouve ton barbier'];
+  const titleParts = ['Trouve ton coiffeur'];
   if (city) titleParts.push(`à ${city}`);
   if (q) titleParts.push(`· "${q}"`);
   titleParts.push('— BookedUp');
 
   const description = city
-    ? `Réserve en ligne chez les meilleurs barbers de ${city}. Disponibilités en temps réel, réservation en 30 secondes.`
-    : 'Les meilleurs barbers de France, réservables en ligne en 30 secondes. Filtrez par ville, note ou prix.';
+    ? `Réserve en ligne chez les meilleurs coiffeurs de ${city}. Disponibilités en temps réel, réservation en 30 secondes.`
+    : 'Les meilleurs coiffeurs de France, réservables en ligne en 30 secondes. Filtrez par ville, note ou prix.';
 
   return {
     title: titleParts.join(' '),
@@ -116,10 +116,10 @@ export default async function BarbersPage({
             <div className="label mb-4 inline-block">Annuaire</div>
             <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
               Trouve ton{' '}
-              <span className="gradient-text">barbier.</span>
+              <span className="gradient-text">coiffeur.</span>
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-white/50">
-              Les meilleurs barbers de France, réservables en ligne en 30 secondes.
+              Les meilleurs coiffeurs de France, réservables en ligne en 30 secondes.
             </p>
 
             {/* ── Search form ── */}
@@ -135,7 +135,7 @@ export default async function BarbersPage({
                   name="q"
                   defaultValue={q}
                   className="input w-full pl-10"
-                  placeholder="Barber, salon…"
+                  placeholder="Coiffeur, salon…"
                   autoComplete="off"
                 />
               </div>
@@ -212,7 +212,7 @@ export default async function BarbersPage({
           <div className="mb-4 flex items-center justify-between gap-4">
             <p className="text-sm text-white/40">
               <span className="font-semibold text-white/70">{totalCount}</span>{' '}
-              barber{totalCount !== 1 ? 's' : ''}
+              coiffeur{totalCount !== 1 ? 's' : ''}
               {city && (
                 <span>
                   {' '}à <span className="text-white/70">{city}</span>
@@ -235,15 +235,15 @@ export default async function BarbersPage({
               <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-white/[0.04]">
                 <Search className="h-7 w-7 text-white/20" />
               </div>
-              <h2 className="text-base font-semibold text-white/70">Aucun barber trouvé</h2>
+              <h2 className="text-base font-semibold text-white/70">Aucun coiffeur trouvé</h2>
               <p className="mt-2 max-w-sm text-sm text-white/40">
                 {q || city
-                  ? 'Essaie d\'autres termes ou supprime les filtres pour voir tous les barbers.'
-                  : 'Aucun barber disponible pour le moment. Reviens bientôt !'}
+                  ? 'Essaie d\'autres termes ou supprime les filtres pour voir tous les coiffeurs.'
+                  : 'Aucun coiffeur disponible pour le moment. Reviens bientôt !'}
               </p>
               {hasFilters && (
                 <Link href="/barbers" className="btn-electric mt-6">
-                  Voir tous les barbers
+                  Voir tous les coiffeurs
                 </Link>
               )}
             </div>

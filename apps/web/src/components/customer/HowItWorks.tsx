@@ -5,7 +5,7 @@ import { Search, CalendarCheck, Scissors } from 'lucide-react';
 const STEPS = [
   {
     Icon: Search,
-    title: 'Trouve ton barber',
+    title: 'Trouve ton coiffeur',
     text: 'Filtre par ville, style, prix. Découvre les avis et le portfolio.',
   },
   {

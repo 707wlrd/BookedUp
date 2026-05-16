@@ -77,7 +77,7 @@ export function BarbersList({ barbers }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="input pl-10"
-            placeholder="Ville, barber, service…"
+            placeholder="Ville, coiffeur, service…"
           />
         </div>
 
@@ -127,7 +127,7 @@ export function BarbersList({ barbers }: Props) {
                 <Navigation2 className="h-4 w-4 text-electric-300" />
               </div>
               <div>
-                <div className="text-sm font-semibold">Trouve les barbers près de toi</div>
+                <div className="text-sm font-semibold">Trouve les coiffeurs près de toi</div>
                 <div className="text-xs text-white/50">Active ta position pour trier par distance.</div>
               </div>
             </div>
@@ -163,7 +163,7 @@ export function BarbersList({ barbers }: Props) {
           >
             <Navigation2 className="h-4 w-4 text-emerald-400" />
             <span className="text-emerald-300 font-medium">Position détectée</span>
-            <span className="text-white/40">— barbers triés par distance</span>
+            <span className="text-white/40">— coiffeurs triés par distance</span>
           </motion.div>
         )}
 
@@ -183,7 +183,7 @@ export function BarbersList({ barbers }: Props) {
 
       {/* ── Results count ── */}
       <div className="text-sm text-white/40">
-        {list.length} barber{list.length > 1 ? 's' : ''}
+        {list.length} coiffeur{list.length > 1 ? 's' : ''}
         {query && <span> pour « <span className="text-white/70">{query}</span> »</span>}
         {geo.status === 'granted' && <span> · triés par distance</span>}
       </div>
@@ -198,7 +198,7 @@ export function BarbersList({ barbers }: Props) {
             className="py-20 text-center text-white/40"
           >
             <AlertTriangle className="mx-auto mb-3 h-8 w-8 opacity-40" />
-            <p className="text-sm">Aucun barber trouvé pour « {query} ».</p>
+            <p className="text-sm">Aucun coiffeur trouvé pour « {query} ».</p>
           </motion.div>
         ) : (
           <motion.div layout className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

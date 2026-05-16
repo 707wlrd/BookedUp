@@ -41,7 +41,7 @@ export function Categories() {
                   <c.Icon className="h-6 w-6 text-electric-300 transition-transform duration-200 group-hover:scale-110" />
                   <div>
                     <div className="text-base font-semibold">{c.label}</div>
-                    <div className="mt-0.5 text-xs text-white/40">Voir les barbers →</div>
+                    <div className="mt-0.5 text-xs text-white/40">Voir les coiffeurs →</div>
                   </div>
                 </div>
               </Link>

@@ -34,7 +34,7 @@ export function FeaturedBarbers() {
               {geo.status === 'granted' ? 'Près de toi' : 'Featured'}
             </p>
             <h2 className="mt-2 text-display-md">
-              {geo.status === 'granted' ? 'Les barbers à côté.' : 'Les barbers en vue.'}
+              {geo.status === 'granted' ? 'Les coiffeurs à côté.' : 'Les coiffeurs en vue.'}
             </h2>
           </div>
 
@@ -173,7 +173,7 @@ export function FeaturedBarbers() {
         {/* Mobile "Voir tout" */}
         <div className="mt-6 text-center sm:hidden">
           <Link href="/barbers" className="btn-ghost text-sm">
-            Voir tous les barbers <ArrowRight className="h-4 w-4" />
+            Voir tous les coiffeurs <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </div>

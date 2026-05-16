@@ -201,7 +201,7 @@ function EmptyState({ upcoming }: { upcoming: boolean }) {
           href="/barbers"
           className="btn-electric mt-5 inline-flex items-center gap-2 text-sm"
         >
-          Trouver un barber
+          Trouver un coiffeur
           <ChevronRight className="h-4 w-4" />
         </Link>
       )}

@@ -85,7 +85,7 @@ function RegisterForm() {
       <div className="mb-6 grid grid-cols-2 gap-2">
         {([
           { key: 'customer', label: 'Je suis client',  Icon: User },
-          { key: 'barber',   label: 'Je suis barber',  Icon: Scissors },
+          { key: 'barber',   label: 'Je suis coiffeur',  Icon: Scissors },
         ] as { key: Role; label: string; Icon: React.ComponentType<{ className?: string }> }[]).map(({ key, label, Icon }) => (
           <button
             key={key}

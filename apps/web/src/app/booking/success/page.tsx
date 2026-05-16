@@ -21,7 +21,7 @@ export default function BookingSuccessPage() {
               className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-medium text-white/80 transition hover:bg-white/[0.08]"
             >
               <CalendarDays className="h-4 w-4" />
-              Explorer d'autres barbers
+              Explorer d'autres coiffeurs
             </Link>
             <Link
               href="/"

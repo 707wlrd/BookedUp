@@ -93,7 +93,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Bon retour."
-      subtitle="Connecte-toi à ton espace barber."
+      subtitle="Connecte-toi à ton espace coiffeur."
       footer={
         <>
           Pas encore de compte ?{' '}

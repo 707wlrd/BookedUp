@@ -20,7 +20,7 @@ export function Nav() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Logo />
         <nav className="hidden items-center gap-8 text-sm text-white/70 md:flex">
-          <Link href="/barbers"            className="transition hover:text-white">Barbers</Link>
+          <Link href="/barbers"            className="transition hover:text-white">Coiffeurs</Link>
           <Link href="/#comment-ca-marche" className="transition hover:text-white">Comment ça marche</Link>
           <Link href="/#avis"              className="transition hover:text-white">Avis</Link>
         </nav>
@@ -30,7 +30,7 @@ export function Nav() {
             className="hidden items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/70 transition hover:border-electric-500/40 hover:text-white sm:inline-flex"
           >
             <Briefcase className="h-3.5 w-3.5" />
-            Pour les barbers
+            Pour les coiffeurs
           </Link>
           <Button href="/login" variant="subtle" size="sm">Connexion</Button>
           <Button href="/barbers" size="sm">Réserver</Button>

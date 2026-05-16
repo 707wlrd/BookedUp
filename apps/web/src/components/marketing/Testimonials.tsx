@@ -24,7 +24,7 @@ export function Testimonials() {
     <section className="py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6">
         <h2 className="mx-auto max-w-2xl text-center text-3xl font-semibold tracking-tight sm:text-5xl">
-          Les barbers qui restent <span className="gradient-text">booked.</span>
+          Les coiffeurs qui restent <span className="gradient-text">booked.</span>
         </h2>
         <div className="mt-16 grid grid-cols-1 gap-4 md:grid-cols-3">
           {QUOTES.map((q, i) => (

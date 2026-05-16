@@ -65,7 +65,7 @@ export default function AccountAuthPage() {
       subtitle={
         mode === 'login'
           ? 'Accède à tes rendez-vous et ton historique.'
-          : 'Réserve chez tes barbers préférés, en 30 secondes.'
+          : 'Réserve chez tes coiffeurs préférés, en 30 secondes.'
       }
       footer={
         mode === 'login' ? (
