@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 5 6 8;
+  --foreground: 250 250 252;
+  --electric:  59 130 255;
+  --spark:     245 158 11;
+}
+
+html, body {
+  background-color: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Background grid + spotlight */
+.bg-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+  background-size: 28px 28px;
+}
+.bg-spotlight {
+  background-image:
+    radial-gradient(60% 50% at 50% 0%, rgba(59,130,255,0.18) 0%, transparent 60%),
+    radial-gradient(40% 40% at 80% 110%, rgba(245,158,11,0.10) 0%, transparent 60%);
+}
+
+::selection { background: rgba(59,130,255,0.35); color: white; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+@layer components {
+  /* ─── Buttons ─────────────────────────────────────────── */
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full
+           bg-electric-500 px-5 py-2.5 text-sm font-semibold text-white
+           transition-all duration-150 ease-out
+           hover:bg-electric-400 hover:shadow-[0_8px_32px_-8px_rgba(59,130,255,0.5)] hover:-translate-y-[1px]
+           active:translate-y-0
+           focus:outline-none focus:ring-2 focus:ring-electric-400 focus:ring-offset-2 focus:ring-offset-ink-950
+           disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0;
+  }
+  .btn-spark {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full
+           bg-spark-500 px-5 py-2.5 text-sm font-semibold text-ink-950
+           transition-all duration-150 ease-out
+           hover:bg-spark-400 hover:shadow-[0_8px_32px_-8px_rgba(245,158,11,0.5)] hover:-translate-y-[1px];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full
+           border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/90
+           transition-all duration-150
+           hover:bg-white/[0.08] hover:border-white/20;
+  }
+
+  /* ─── Cards (Bento) ───────────────────────────────────── */
+  .card {
+    @apply relative rounded-[24px] border border-white/[0.08]
+           bg-gradient-to-b from-white/[0.03] to-white/[0.01]
+           backdrop-blur-md shadow-[0_1px_2px_rgba(0,0,0,0.4),0_4px_16px_-4px_rgba(0,0,0,0.6)]
+           transition-all duration-200;
+  }
+  .card-hover {
+    @apply hover:border-electric-500/30 hover:shadow-[0_12px_32px_-8px_rgba(59,130,255,0.25)] hover:-translate-y-0.5;
+  }
+  .card-glow::before {
+    content: '';
+    @apply pointer-events-none absolute inset-0 rounded-[24px] opacity-0 transition-opacity duration-300;
+    background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 50%), rgba(59,130,255,0.12), transparent 40%);
+  }
+  .card-glow:hover::before { @apply opacity-100; }
+
+  /* ─── Glass ───────────────────────────────────────────── */
+  .glass {
+    @apply border border-white/10 bg-white/[0.04] backdrop-blur-xl;
+  }
+  .glass-strong {
+    @apply border border-white/[0.12] bg-white/[0.06] backdrop-blur-2xl;
+  }
+
+  /* ─── Inputs ──────────────────────────────────────────── */
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-ink-800/60 px-4 py-2.5 text-sm
+           text-white placeholder:text-white/30
+           transition duration-150
+           focus:outline-none focus:border-electric-500/60 focus:ring-2 focus:ring-electric-500/20;
+  }
+
+  /* ─── Labels / chips ──────────────────────────────────── */
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-white/45;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5
+           text-xs font-medium text-white/70 transition
+           hover:border-white/20;
+  }
+  .chip-spark {
+    @apply chip border-spark-500/30 bg-spark-500/10 text-spark-400;
+  }
+  .chip-electric {
+    @apply chip border-electric-500/30 bg-electric-500/10 text-electric-300;
+  }
+
+  /* ─── Text ────────────────────────────────────────────── */
+  .gradient-text {
+    background: linear-gradient(135deg, #ffffff 0%, #93b9ff 50%, #3b82ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .gradient-spark {
+    background: linear-gradient(135deg, #ffffff 0%, #fcd34d 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ─── Micro-interactions ──────────────────────────────── */
+  .arrow-slide > svg {
+    @apply transition-transform duration-150;
+  }
+  .arrow-slide:hover > svg {
+    @apply translate-x-0.5;
+  }
+
+  /* ─── Bento layout helpers ────────────────────────────── */
+  .bento {
+    @apply grid gap-3;
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .bento-cell { @apply col-span-12 md:col-span-6; }
+  .bento-wide { @apply col-span-12 md:col-span-8; }
+  .bento-tall { @apply col-span-12 md:col-span-4 md:row-span-2; }
+  .bento-full { @apply col-span-12; }
+}
+
+/* Reduce motion for those who want it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,35 @@
+﻿{
+  "nav": {
+    "features": "Fonctionnalités",
+    "pricing": "Tarifs",
+    "barbers": "Barbers",
+    "login": "Connexion",
+    "cta": "Commencer"
+  },
+  "hero": {
+    "badge": "Stay Booked.",
+    "title": "Le système de réservation que les barbers attendaient.",
+    "subtitle": "BookedUp réduit les no-shows, remplit ton agenda et automatise ta com'. Tout ce dont tu as besoin pour rester booked.",
+    "cta_primary": "Démarrer gratuitement",
+    "cta_secondary": "Voir une démo"
+  },
+  "features": {
+    "title": "Tout ce qu'il faut pour rester booked.",
+    "items": {
+      "bookings": { "t": "Réservations 24/7", "d": "Tes clients réservent en ligne, paient un acompte, reçoivent leur confirmation." },
+      "deposits": { "t": "Acomptes Stripe", "d": "Fini les no-shows. L'acompte est encaissé automatiquement." },
+      "calendar": { "t": "Agenda intelligent", "d": "Horaires, pauses, congés, services — tout est synchronisé." },
+      "ai":       { "t": "IA pour ta com'", "d": "Captions, stories Instagram et rappels générés en un clic." },
+      "clients":  { "t": "Fiche client", "d": "Historique, préférences, notes — tu retrouves chaque client." },
+      "analytics":{ "t": "Analytics", "d": "CA, taux de remplissage, no-shows : tu pilotes ton activité." }
+    }
+  },
+  "pricing": {
+    "title": "Un prix simple. Sans engagement.",
+    "subtitle": "Annule quand tu veux. Aucune carte requise pour commencer."
+  },
+  "cta": {
+    "title": "Prêt à rester booked ?",
+    "subtitle": "Crée ton compte en 2 minutes."
+  }
+}

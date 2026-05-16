@@ -1,0 +1,27 @@
+{
+  "name": "bookedup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BookedUp — Stay Booked. SaaS for barbers and hair salons.",
+  "scripts": {
+    "dev": "pnpm --filter @bookedup/web dev",
+    "dev:mobile": "pnpm --filter @bookedup/mobile start",
+    "build": "pnpm --filter @bookedup/web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "supabase:reset": "supabase db reset"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "@types/react": "18.3.28",
+      "@types/react-dom": "18.3.7"
+    },
+    "neverBuiltDependencies": [
+      "react-native-screens"
+    ]
+  }
+}

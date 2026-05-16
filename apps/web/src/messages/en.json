@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "barbers": "Barbers",
+    "login": "Log in",
+    "cta": "Get started"
+  },
+  "hero": {
+    "badge": "Stay Booked.",
+    "title": "The booking system barbers have been waiting for.",
+    "subtitle": "BookedUp kills no-shows, fills your chair, and automates your socials. Everything you need to stay booked.",
+    "cta_primary": "Start for free",
+    "cta_secondary": "See a demo"
+  },
+  "features": {
+    "title": "Everything you need to stay booked.",
+    "items": {
+      "bookings": { "t": "24/7 bookings", "d": "Customers book online, pay a deposit, and get instant confirmation." },
+      "deposits": { "t": "Stripe deposits", "d": "No more no-shows. Deposits are collected automatically." },
+      "calendar": { "t": "Smart calendar", "d": "Hours, breaks, time-off, services — all in sync." },
+      "ai":       { "t": "AI for your socials", "d": "Captions, IG stories, and reminders generated in one click." },
+      "clients":  { "t": "Client cards", "d": "History, preferences, notes — never forget a client." },
+      "analytics":{ "t": "Analytics", "d": "Revenue, utilization, no-shows: you steer the business." }
+    }
+  },
+  "pricing": {
+    "title": "Simple pricing. No lock-in.",
+    "subtitle": "Cancel anytime. No card required to start."
+  },
+  "cta": {
+    "title": "Ready to stay booked?",
+    "subtitle": "Create your account in 2 minutes."
+  }
+}
