@@ -20,21 +20,15 @@ export default function HomePage() {
   const [city, setCity] = useState('');
 
   return (
-    <div className="min-h-screen bg-ink-950">
+    <div
+      className="min-h-screen bg-ink-950"
+      style={{ background: 'radial-gradient(ellipse 90% 55% at 50% -5%, rgba(124,58,237,0.28) 0%, rgba(109,40,217,0.10) 40%, #05060a 70%)' }}
+    >
       <Nav />
 
       <main>
         {/* ── Hero ──────────────────────────────────────────── */}
-        <section className="relative flex flex-col items-center justify-center px-6 py-28 text-center overflow-hidden">
-          {/* Halo violet */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[700px] w-[700px] rounded-full bg-[#7c3aed]/30 blur-[130px]"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[350px] w-[350px] rounded-full bg-[#a78bfa]/20 blur-[80px]"
-          />
+        <section className="relative flex flex-col items-center justify-center px-6 py-28 text-center">
 
           <motion.div
             initial={{ opacity: 0, y: 16 }}
