@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "BookedUp",
-    "slug": "bookedup",
-    "version": "0.1.0",
+    "name": "BookedUp Pro",
+    "slug": "bookedup-pro",
+    "version": "1.0.0",
     "scheme": "bookedup",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,13 +12,25 @@
       "resizeMode": "contain",
       "backgroundColor": "#050608"
     },
-    "ios": { "supportsTablet": false, "bundleIdentifier": "app.bookedup.mobile" },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.bookedup.pro",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BookedUp Pro utilise la caméra pour la photo de ton salon.",
+        "NSPhotoLibraryUsageDescription": "BookedUp Pro accède à ta galerie pour la photo de ton salon."
+      }
+    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#050608"
       },
-      "package": "app.bookedup.mobile"
+      "package": "app.bookedup.pro",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -26,10 +38,14 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#3b82ff"
+          "color": "#7C3AED",
+          "sounds": []
         }
       ]
     ],
+    "extra": {
+      "eas": { "projectId": "" }
+    },
     "experiments": { "typedRoutes": true }
   }
 }
