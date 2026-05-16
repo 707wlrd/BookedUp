@@ -81,9 +81,9 @@ export function DashboardLive({ barberId }: { barberId: string }) {
         .in('status', ['confirmed', 'completed']),
     ]);
 
-    setAppts((todayData ?? []) as Appt[]);
-    setWeek((weekData  ?? []) as WeekAppt[]);
-    setPrevWeek((prevData ?? []) as WeekAppt[]);
+    setAppts((todayData ?? []) as unknown as Appt[]);
+    setWeek((weekData  ?? []) as unknown as WeekAppt[]);
+    setPrevWeek((prevData ?? []) as unknown as WeekAppt[]);
   }, [barberId]);
 
   // Initial load
