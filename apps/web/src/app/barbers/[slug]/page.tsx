@@ -426,7 +426,7 @@ export default async function BarberProfilePage({
             {/* Right: sticky BookingFlow */}
             {safeServices.length > 0 && (
               <div className="hidden lg:block">
-                <div className="sticky top-24">
+                <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl">
                   <BookingFlow barber={barberForFlow} initialServiceId={searchParams.service} />
                 </div>
               </div>
