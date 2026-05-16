@@ -173,7 +173,7 @@ export default function SettingsPage() {
         setInstagramHandle(data.instagram_handle ?? '');
         setAvatarUrl(data.avatar_url ?? '');
         setAvatarPreview(data.avatar_url ?? '');
-        setCoverUrl(data.cover_url ?? '');
+        setCoverUrl(data.cover_image_url ?? '');
         setDepositEnabled(data.deposit_required ?? false);
         setDepositAmount(
           data.deposit_amount_cents ? String(Math.round(data.deposit_amount_cents / 100)) : '10',
@@ -248,7 +248,7 @@ export default function SettingsPage() {
         city,
         instagram_handle: instagramHandle,
         avatar_url: avatarUrl,
-        cover_url: coverUrl,
+        cover_image_url: coverUrl,
       })
       .eq('owner_id', userId);
 
