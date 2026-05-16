@@ -15,29 +15,31 @@ export default function TabsLayout() {
           paddingTop: 8,
           paddingBottom: 24,
         },
-        headerStyle: { backgroundColor: colors.bg },
-        headerTintColor: colors.text,
+        headerStyle:       { backgroundColor: colors.bg },
+        headerTintColor:   colors.text,
         headerShadowVisible: false,
-        headerLargeTitle: true,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Aujourd\'hui',
-          tabBarIcon: ({ color, size }) => <Ionicons name="sunny-outline" size={size} color={color} />,
+          headerShown: false,
+          title: 'Accueil',
+          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="appointments"
         options={{
-          title: 'RDV',
+          headerShown: false,
+          title: 'Agenda',
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="clients"
         options={{
+          headerShown: false,
           title: 'Clients',
           tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} />,
         }}
@@ -45,13 +47,15 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="revenue"
         options={{
-          title: 'Revenus',
-          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
+          headerShown: false,
+          title: 'Stats',
+          tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="ai"
         options={{
+          headerShown: false,
           title: 'IA',
           tabBarIcon: ({ color, size }) => <Ionicons name="sparkles-outline" size={size} color={color} />,
         }}

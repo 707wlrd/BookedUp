@@ -5,95 +5,41 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
-type UserInfo = {
-  id: string;
-  email: string;
-  full_name: string;
-};
+type Info = { name: string; email: string; shopName: string; city: string };
 
-type Appointment = {
-  id: string;
-  starts_at: string;
-  status: string;
-  services: { name: string } | null;
-  barbers: { name: string } | null;
-};
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map(n => n[0] ?? '')
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+function getInitials(name: string) {
+  const parts = name.trim().split(' ');
+  return parts.length >= 2
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
 }
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  confirmed: { label: 'Confirmé',   color: colors.electric },
-  pending:   { label: 'En attente', color: colors.warning },
-  completed: { label: 'Terminé',    color: colors.success },
-  cancelled: { label: 'Annulé',     color: colors.danger },
-  no_show:   { label: 'No-show',    color: colors.textFaint },
-};
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const insets = useSafeAreaInsets();
+  const [info, setInfo]     = useState<Info | null>(null);
   const [loading, setLoading] = useState(true);
-  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    async function load() {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
-
-      const fullName =
-        authUser.user_metadata?.full_name ??
-        authUser.user_metadata?.name ??
-        authUser.email?.split('@')[0] ??
-        'Utilisateur';
-
-      setUser({
-        id: authUser.id,
-        email: authUser.email ?? '',
-        full_name: fullName,
-      });
-
-      const { data } = await supabase
-        .from('appointments')
-        .select('id, starts_at, status, services(name), barbers(name)')
-        .eq('customer_id', authUser.id)
-        .order('starts_at', { ascending: false })
-        .limit(5);
-
-      setAppointments((data ?? []) as Appointment[]);
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const name = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? '';
+      const { data: barber } = await supabase.from('barbers').select('shop_name, city').eq('owner_id', user.id).single();
+      setInfo({ name, email: user.email ?? '', shopName: barber?.shop_name ?? '', city: barber?.city ?? '' });
       setLoading(false);
-    }
-
-    load();
+    })();
   }, []);
 
-  function handleSignOut() {
-    Alert.alert(
-      'Se déconnecter',
-      'Voulez-vous vraiment vous déconnecter ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Se déconnecter',
-          style: 'destructive',
-          onPress: async () => {
-            setSigningOut(true);
-            await supabase.auth.signOut();
-            router.replace('/' as any);
-          },
-        },
-      ],
-    );
+  function signOut() {
+    Alert.alert('Déconnexion', 'Tu vas être déconnecté.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Se déconnecter', style: 'destructive', onPress: () => supabase.auth.signOut() },
+    ]);
   }
 
   if (loading) {
@@ -104,139 +50,122 @@ export default function ProfileScreen() {
     );
   }
 
-  const initials = user ? getInitials(user.full_name) : '?';
+  const initials = getInitials(info?.name || info?.email || '?');
 
   return (
-    <ScrollView style={s.scroll} contentContainerStyle={s.content}>
-      {/* Avatar + identité */}
-      <View style={s.header}>
+    <ScrollView
+      style={s.scroll}
+      contentContainerStyle={[s.content, { paddingTop: insets.top + 16, paddingBottom: 80 }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ── Back ── */}
+      <Pressable onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
+        <Ionicons name="chevron-back" size={22} color={colors.text} />
+        <Text style={s.backText}>Retour</Text>
+      </Pressable>
+
+      {/* ── Avatar + info ── */}
+      <View style={s.avatarSection}>
         <View style={s.avatar}>
           <Text style={s.avatarText}>{initials}</Text>
         </View>
-        <Text style={s.name}>{user?.full_name}</Text>
-        <Text style={s.email}>{user?.email}</Text>
-      </View>
-
-      {/* Derniers RDV */}
-      <View style={s.section}>
-        <Text style={s.sectionLabel}>Mes derniers rendez-vous</Text>
-
-        {appointments.length === 0 ? (
-          <View style={s.emptyCard}>
-            <Ionicons name="calendar-outline" size={32} color={colors.textFaint} />
-            <Text style={s.emptyText}>Aucun rendez-vous pour l'instant</Text>
+        <Text style={s.nameText}>{info?.name || 'Mon compte'}</Text>
+        {info?.shopName ? <Text style={s.shopText}>{info.shopName}</Text> : null}
+        {info?.city ? (
+          <View style={s.cityRow}>
+            <Ionicons name="location-outline" size={12} color={colors.textFaint} />
+            <Text style={s.cityText}>{info.city}</Text>
           </View>
-        ) : (
-          appointments.map(appt => {
-            const sc = STATUS_CONFIG[appt.status] ?? STATUS_CONFIG.confirmed;
-            const startsAt = new Date(appt.starts_at);
-            const service = appt.services as any;
-            const barber = appt.barbers as any;
-
-            return (
-              <Pressable
-                key={appt.id}
-                style={s.apptCard}
-                onPress={() => router.push(`/appointment/${appt.id}` as any)}
-              >
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={s.apptService}>{service?.name ?? 'Service'}</Text>
-                  {barber?.name && (
-                    <Text style={s.apptBarber}>avec {barber.name}</Text>
-                  )}
-                  <Text style={s.apptDate}>
-                    {startsAt.toLocaleDateString('fr-FR', {
-                      weekday: 'short', day: 'numeric', month: 'short',
-                    })}
-                    {'  '}
-                    {startsAt.toLocaleTimeString('fr-FR', {
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </Text>
-                </View>
-                <View style={s.statusBadge}>
-                  <Text style={[s.statusText, { color: sc.color }]}>{sc.label}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
-              </Pressable>
-            );
-          })
-        )}
+        ) : null}
+        <Text style={s.emailText}>{info?.email}</Text>
       </View>
 
-      {/* Bouton déconnexion */}
-      <Pressable
-        style={[s.signOutBtn, signingOut && { opacity: 0.6 }]}
-        onPress={handleSignOut}
-        disabled={signingOut}
-      >
-        {signingOut ? (
-          <ActivityIndicator color={colors.danger} size="small" />
-        ) : (
-          <>
-            <Ionicons name="log-out-outline" size={18} color={colors.danger} />
-            <Text style={s.signOutText}>Se déconnecter</Text>
-          </>
-        )}
+      {/* ── Salon ── */}
+      <Text style={s.sectionLabel}>Mon salon</Text>
+      <View style={s.section}>
+        <MenuItem icon="storefront-outline"  label="Informations du salon"   onPress={() => Alert.alert('Bientôt')} />
+        <MenuItem icon="time-outline"        label="Horaires d'ouverture"    onPress={() => Alert.alert('Bientôt')} />
+        <MenuItem icon="cut-outline"         label="Prestations & tarifs"    onPress={() => Alert.alert('Bientôt')} />
+        <MenuItem icon="people-outline"      label="Équipe / Stylistes"      onPress={() => Alert.alert('Bientôt')} showDivider={false} />
+      </View>
+
+      {/* ── Compte ── */}
+      <Text style={s.sectionLabel}>Compte</Text>
+      <View style={s.section}>
+        <MenuItem icon="person-outline"       label="Informations personnelles" onPress={() => Alert.alert('Bientôt')} />
+        <MenuItem icon="card-outline"         label="Abonnement & facturation"  onPress={() => Alert.alert('Bientôt')} value="Pro" />
+        <MenuItem icon="notifications-outline" label="Notifications"            onPress={() => Alert.alert('Bientôt')} showDivider={false} />
+      </View>
+
+      {/* ── Aide ── */}
+      <Text style={s.sectionLabel}>Aide</Text>
+      <View style={s.section}>
+        <MenuItem icon="help-circle-outline"   label="Centre d'aide"             onPress={() => Alert.alert('Bientôt')} />
+        <MenuItem icon="chatbubble-outline"    label="Nous contacter"            onPress={() => Alert.alert('Bientôt')} />
+        <MenuItem icon="document-text-outline" label="Conditions d'utilisation"  onPress={() => Alert.alert('Bientôt')} showDivider={false} />
+      </View>
+
+      {/* ── Version ── */}
+      <View style={s.section}>
+        <MenuItem icon="information-circle-outline" label="Version" value="v0.1.0" onPress={() => {}} showDivider={false} />
+      </View>
+
+      {/* ── Sign out ── */}
+      <Pressable onPress={signOut} style={s.signOutBtn}>
+        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        <Text style={s.signOutText}>Se déconnecter</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
+function MenuItem({ icon, label, value, onPress, showDivider = true }: {
+  icon: any; label: string; value?: string; onPress: () => void; showDivider?: boolean;
+}) {
+  return (
+    <>
+      <Pressable onPress={onPress} style={s.menuItem}>
+        <View style={s.menuIconBox}>
+          <Ionicons name={icon} size={17} color={colors.electric} />
+        </View>
+        <Text style={s.menuLabel}>{label}</Text>
+        <View style={s.menuRight}>
+          {value ? <Text style={s.menuValue}>{value}</Text> : null}
+          <Ionicons name="chevron-forward" size={15} color={colors.textFaint} />
+        </View>
+      </Pressable>
+      {showDivider && <View style={s.divider} />}
+    </>
+  );
+}
+
 const s = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, paddingBottom: 60, gap: spacing.md },
+  scroll:   { flex: 1, backgroundColor: colors.bg },
+  content:  { paddingHorizontal: spacing.md, gap: spacing.sm },
   centered: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 
-  header: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
-  avatar: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: 'rgba(124,58,237,0.4)',
-  },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: '700' },
-  name: { color: colors.text, fontSize: 22, fontWeight: '700' },
-  email: { color: colors.textDim, fontSize: 14 },
+  backBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: spacing.md },
+  backText: { color: colors.text, fontSize: 16 },
 
-  section: { gap: spacing.sm },
-  sectionLabel: {
-    color: colors.textFaint, fontSize: 10,
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginBottom: 4,
-  },
+  avatarSection: { alignItems: 'center', paddingVertical: spacing.lg, gap: 4 },
+  avatar:      { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.electricDim, borderWidth: 2, borderColor: 'rgba(124,58,237,0.4)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  avatarText:  { color: colors.electric, fontSize: 28, fontWeight: '900' },
+  nameText:    { color: colors.text, fontSize: 20, fontWeight: '800' },
+  shopText:    { color: colors.textDim, fontSize: 14, fontWeight: '600' },
+  cityRow:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cityText:    { color: colors.textFaint, fontSize: 12 },
+  emailText:   { color: colors.textFaint, fontSize: 12 },
 
-  emptyCard: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    padding: spacing.lg, alignItems: 'center', gap: spacing.sm,
-  },
-  emptyText: { color: colors.textFaint, fontSize: 13 },
+  sectionLabel: { color: colors.textFaint, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, paddingHorizontal: 4, marginTop: spacing.sm },
+  section:      { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
-  apptCard: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    padding: spacing.md,
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-  },
-  apptService: { color: colors.text, fontWeight: '600', fontSize: 14 },
-  apptBarber: { color: colors.textDim, fontSize: 12 },
-  apptDate: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
+  menuItem:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 14, gap: spacing.md },
+  menuIconBox:{ width: 30, height: 30, borderRadius: radius.sm, backgroundColor: colors.electricDim, alignItems: 'center', justifyContent: 'center' },
+  menuLabel:  { flex: 1, color: colors.text, fontSize: 14, fontWeight: '500' },
+  menuRight:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  menuValue:  { color: colors.textFaint, fontSize: 13 },
+  divider:    { height: 1, backgroundColor: colors.border, marginLeft: 62 },
 
-  statusBadge: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  statusText: { fontSize: 11, fontWeight: '600' },
-
-  signOutBtn: {
-    marginTop: spacing.md,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
-    backgroundColor: 'rgba(239,68,68,0.06)',
-    borderRadius: radius.full,
-    paddingVertical: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-  },
-  signOutText: { color: colors.danger, fontWeight: '600', fontSize: 15 },
+  signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)', padding: spacing.md, marginTop: spacing.sm },
+  signOutText:{ color: colors.danger, fontSize: 14, fontWeight: '600' },
 });
