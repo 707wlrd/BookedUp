@@ -169,6 +169,18 @@ export default function BookScreen() {
   const selectedService = services.find(s => s.id === serviceId);
   const selectedStylist = stylists.find(s => s.id === stylistId);
 
+  // Whether user can pick a date/time (stylist must be chosen when there are multiple)
+  const stylistRequired = stylists.length > 1 && !stylistId;
+
+  // Past-slot filter for today
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const nowMinutes   = new Date().getHours() * 60 + new Date().getMinutes();
+  function isPastSlot(slot: string) {
+    if (date !== todayDateStr) return false;
+    const [h, m] = slot.split(':').map(Number);
+    return h * 60 + m <= nowMinutes;
+  }
+
   /* Init */
   const init = useCallback(async () => {
     const [{ data: b }, { data: svcs }, { data: stys }, { data: { user } }] = await Promise.all([
@@ -190,19 +202,27 @@ export default function BookScreen() {
 
   useEffect(() => { init().finally(() => setLoading(false)); }, [init]);
 
-  /* Load availability when date changes */
+  /* Auto-select single stylist */
+  useEffect(() => {
+    if (stylists.length === 1) setStylistId(stylists[0].id);
+  }, [stylists]);
+
+  /* Load availability when date OR stylist changes */
   useEffect(() => {
     if (!date || !selectedService) return;
+    // If there are stylists but none selected yet, wait
+    if (stylists.length > 1 && !stylistId) return;
     setSlotsLoading(true);
     setBusySlots([]);
-    fetch(`${API}/api/availability?barber_id=${barberId}&date=${date}&duration=${selectedService.duration_minutes}`)
+    const stylistParam = stylistId ? `&stylist_id=${stylistId}` : '';
+    fetch(`${API}/api/availability?barber_id=${barberId}&date=${date}&duration=${selectedService.duration_minutes}${stylistParam}`)
       .then(r => r.json())
       .then(d => setBusySlots(
         (d.slots ?? []).filter((s: { time: string; available: boolean }) => !s.available).map((s: { time: string }) => s.time)
       ))
       .catch(() => {})
       .finally(() => setSlotsLoading(false));
-  }, [date, selectedService, barberId]);
+  }, [date, selectedService, barberId, stylistId, stylists.length]);
 
   /* Book */
   async function confirmBooking() {
@@ -316,18 +336,21 @@ export default function BookScreen() {
                 {stylists.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', gap: 8, paddingRight: 8 }}>
-                      <Pressable
-                        onPress={() => setStylistId(null)}
-                        style={[s.stylistPill, stylistId === null && s.stylistPillActive]}
-                      >
-                        <Text style={[s.stylistPillText, stylistId === null && s.stylistPillTextActive]}>
-                          Peu importe
-                        </Text>
-                      </Pressable>
+                      {/* "Peu importe" only when there's a single stylist */}
+                      {stylists.length === 1 && (
+                        <Pressable
+                          onPress={() => { setStylistId(null); setTime(''); }}
+                          style={[s.stylistPill, stylistId === null && s.stylistPillActive]}
+                        >
+                          <Text style={[s.stylistPillText, stylistId === null && s.stylistPillTextActive]}>
+                            Peu importe
+                          </Text>
+                        </Pressable>
+                      )}
                       {stylists.map(st => (
                         <Pressable
                           key={st.id}
-                          onPress={() => setStylistId(st.id)}
+                          onPress={() => { setStylistId(st.id); setTime(''); }}
                           style={[s.stylistPill, stylistId === st.id && s.stylistPillActive]}
                         >
                           <Text style={[s.stylistPillText, stylistId === st.id && s.stylistPillTextActive]}>
@@ -370,38 +393,50 @@ export default function BookScreen() {
 
           {/* Calendar */}
           <Text style={s.sectionLabel}>Sélectionnez une date et une heure</Text>
-          <View style={s.calendarWrap}>
-            <CalendarPicker selected={date} onSelect={d => { setDate(d); setTime(''); }} />
-          </View>
 
-          {/* Time slots */}
-          {date && (
-            slotsLoading ? (
-              <View style={s.slotsLoader}>
-                <ActivityIndicator color={colors.electric} />
+          {stylistRequired ? (
+            <View style={s.stylistGate}>
+              <Ionicons name="person-outline" size={28} color={colors.electric} style={{ opacity: 0.6 }} />
+              <Text style={s.stylistGateText}>Choisissez d'abord un coiffeur</Text>
+              <Text style={s.stylistGateHint}>Les disponibilités s'afficheront selon le coiffeur sélectionné.</Text>
+            </View>
+          ) : (
+            <>
+              <View style={s.calendarWrap}>
+                <CalendarPicker selected={date} onSelect={d => { setDate(d); setTime(''); }} />
               </View>
-            ) : (
-              <View style={s.slotsGrid}>
-                {allSlots.map(slot => {
-                  const busy = busySlots.includes(slot);
-                  const sel  = slot === time;
-                  return (
-                    <Pressable
-                      key={slot}
-                      onPress={() => !busy && setTime(slot)}
-                      disabled={busy}
-                      style={[s.slotPill, sel && s.slotPillSel, busy && s.slotPillBusy]}
-                    >
-                      <Text style={[s.slotTxt, sel && s.slotTxtSel, busy && s.slotTxtBusy]}>{slot}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )
-          )}
 
-          {!date && (
-            <Text style={s.selectDateHint}>← Sélectionnez un jour dans le calendrier</Text>
+              {/* Time slots */}
+              {date && (
+                slotsLoading ? (
+                  <View style={s.slotsLoader}>
+                    <ActivityIndicator color={colors.electric} />
+                  </View>
+                ) : (
+                  <View style={s.slotsGrid}>
+                    {allSlots.map(slot => {
+                      const past = isPastSlot(slot);
+                      const busy = busySlots.includes(slot) || past;
+                      const sel  = slot === time;
+                      return (
+                        <Pressable
+                          key={slot}
+                          onPress={() => !busy && setTime(slot)}
+                          disabled={busy}
+                          style={[s.slotPill, sel && s.slotPillSel, busy && s.slotPillBusy]}
+                        >
+                          <Text style={[s.slotTxt, sel && s.slotTxtSel, busy && s.slotTxtBusy]}>{slot}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )
+              )}
+
+              {!date && (
+                <Text style={s.selectDateHint}>← Sélectionnez un jour dans le calendrier</Text>
+              )}
+            </>
           )}
 
           <View style={{ height: 100 }} />
@@ -411,8 +446,8 @@ export default function BookScreen() {
         <View style={[s.stickyBar, { paddingBottom: insets.bottom + 8 }]}>
           <Pressable
             onPress={() => setStep('confirm')}
-            disabled={!date || !time}
-            style={[s.stickyBtn, (!date || !time) && s.stickyBtnDisabled]}
+            disabled={!date || !time || stylistRequired}
+            style={[s.stickyBtn, (!date || !time || stylistRequired) && s.stickyBtnDisabled]}
           >
             <Text style={s.stickyBtnText}>Suivant</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
@@ -600,6 +635,9 @@ const s = StyleSheet.create({
   slotTxtSel:     { color: '#fff' },
   slotTxtBusy:    { color: colors.textFaint },
   selectDateHint: { color: colors.textFaint, textAlign: 'center', marginTop: spacing.md, fontStyle: 'italic' },
+  stylistGate:     { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.xl * 1.5, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
+  stylistGateText: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  stylistGateHint: { color: colors.textFaint, fontSize: 13, textAlign: 'center', paddingHorizontal: spacing.lg },
 
   // Sticky bar (datetime step)
   stickyBar:     { backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.md },
